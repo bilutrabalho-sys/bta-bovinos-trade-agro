@@ -1,3 +1,8 @@
 node_modules/
 dist/
 .DS_Store
+
+# Variaveis de ambiente locais (nao versionar). O template fica em .env.example
+.env
+.env.local
+.env.*.local

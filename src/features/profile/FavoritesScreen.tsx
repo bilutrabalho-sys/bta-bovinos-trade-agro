@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { LOTS, FARMS, OPPORTUNITIES, SAVED_SIMULATIONS, COURSES } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, LotCard, Ic, VerifiedBadge } from '@/components'
 
 export function FavoritesScreen({ onBack, onLot, onFarm }: { onBack: () => void; onLot: (id: number) => void; onFarm: (id: number) => void }) {
+  const { LOTS, FARMS, OPPORTUNITIES, SAVED_SIMULATIONS, COURSES } = useData()
   const [tab, setTab] = useState('Lotes')
   const favLots = LOTS.filter(l => [1, 15, 8].includes(l.id))
   const favFarms = FARMS.filter(f => [1, 4].includes(f.id))

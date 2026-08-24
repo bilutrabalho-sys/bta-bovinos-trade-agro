@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { MATCH_RESULTS, LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, SectionTitle, VerifiedBadge, Ic } from '@/components'
 
 export function BTAMatchScreen({ onBack, onLot, onNavigate }: { onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void }) {
+  const { MATCH_RESULTS, LOTS } = useData()
   const [searched, setSearched] = useState(false)
   const [saved, setSaved] = useState<number[]>([])
   return (

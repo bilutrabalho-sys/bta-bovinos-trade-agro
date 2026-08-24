@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { LOTS, FARMS, MARKET_DATA, type Lot } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Ic, VerifiedBadge, BTAScore, Btn } from '@/components'
 
@@ -21,6 +22,7 @@ async function shareLot(lot: Lot) {
 export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate }: {
   lotId: number; onBack: () => void; onNavigate: (s: Screen) => void; onFarm: (id: number) => void; onSimulate: (lotId: number) => void
 }) {
+  const { LOTS, FARMS, MARKET_DATA } = useData()
   const lot = LOTS.find(l => l.id === lotId)!
   const farm = FARMS.find(f => f.id === lot.sellerId)!
   const [imgIdx, setImgIdx] = useState(0)

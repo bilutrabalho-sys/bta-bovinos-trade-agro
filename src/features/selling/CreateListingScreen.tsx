@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, Ic } from '@/components'
 
 export function CreateListingScreen({ onBack }: { onBack: () => void }) {
+  const { LOTS } = useData()
   const [step, setStep] = useState(0)
   const steps = ['Fotos', 'Vídeo', 'Características', 'Peso', 'Quantidade', 'Localização', 'Preço', 'Condições', 'Revisão', 'Publicar']
   const stepContent = [

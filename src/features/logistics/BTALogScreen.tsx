@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { TRANSPORTERS, LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, SectionTitle, VerifiedBadge, Ic, Btn } from '@/components'
 
 export function BTALogScreen({ lotId, onBack }: { lotId: number; onBack: () => void }) {
+  const { TRANSPORTERS, LOTS } = useData()
   const lot = LOTS.find(l => l.id === lotId)!
   const [selected, setSelected] = useState<number | null>(null)
   const [requested, setRequested] = useState(false)

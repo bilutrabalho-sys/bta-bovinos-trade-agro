@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { LESSONS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, Ic } from '@/components'
 
 export function LessonScreen({ courseId, onBack, onNavigate }: { courseId: number; onBack: () => void; onNavigate: (s: Screen) => void }) {
+  const { LESSONS } = useData()
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [completed, setCompleted] = useState(false)

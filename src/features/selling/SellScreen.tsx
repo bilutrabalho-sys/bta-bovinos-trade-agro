@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, Ic } from '@/components'
 
 export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void }) {
+  const { LOTS } = useData()
   const [tab, setTab] = useState('Ativos')
   const myLots = LOTS.slice(0, 3).map((l, i) => ({ ...l, proposals: [2, 1, 0][i], views: [148, 63, 12][i], favorites: [24, 8, 2][i], status: ['Ativo', 'Ativo', 'Publicado'][i] }))
   return (

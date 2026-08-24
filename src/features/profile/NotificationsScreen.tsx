@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NOTIFICATIONS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, Ic } from '@/components'
 
 export function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  const { NOTIFICATIONS } = useData()
   const [notifs, setNotifs] = useState(NOTIFICATIONS)
   const iconMap: Record<string, React.ReactNode> = { match: <Ic.Target />, proposal: <Ic.Handshake />, price: <Ic.TrendingUp />, radar: <Ic.Radar />, academy: <Ic.Book /> }
   return (

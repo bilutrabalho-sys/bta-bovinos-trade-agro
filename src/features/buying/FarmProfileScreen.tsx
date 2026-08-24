@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { FARMS, LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Ic, VerifiedBadge, SectionTitle, LotCard, Btn } from '@/components'
 
 export function FarmProfileScreen({ farmId, onBack, onLot, onNavigate }: { farmId: number; onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen, lotId?: number) => void }) {
+  const { FARMS, LOTS } = useData()
   const farm = FARMS.find(f => f.id === farmId)!
   const farmLots = LOTS.filter(l => l.sellerId === farmId)
   const [following, setFollowing] = useState(false)

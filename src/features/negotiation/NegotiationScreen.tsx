@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react'
-import { CHAT_MESSAGES, LOTS, FARMS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Btn, Ic } from '@/components'
 
 export function NegotiationScreen({ lotId, onBack, onNavigate }: { lotId: number; onBack: () => void; onNavigate: (s: Screen) => void }) {
+  const { CHAT_MESSAGES, LOTS, FARMS } = useData()
   const lot = LOTS.find(l => l.id === lotId)!
   const farm = FARMS.find(f => f.id === lot.sellerId)!
   const [msgs, setMsgs] = useState(CHAT_MESSAGES)

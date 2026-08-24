@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LOTS } from './data/mock'
+import { useData } from './data/DataProvider'
 import type { BuyFilters, Screen, Tab } from './core/navigation'
 import { SplashScreen } from './features/onboarding/SplashScreen'
 import { TermsScreen } from './features/onboarding/TermsScreen'
@@ -35,6 +35,7 @@ import { NotificationsScreen } from './features/profile/NotificationsScreen'
 
 // ─── Main App ───────────────────────────────────────────────────────────────
 export default function App() {
+  const { LOTS } = useData()
   const [screen, setScreen] = useState<Screen>('splash')
   const [history, setHistory] = useState<Screen[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('home')

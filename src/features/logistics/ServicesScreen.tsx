@@ -1,4 +1,4 @@
-import { SERVICES } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, Ic } from '@/components'
 
@@ -12,6 +12,7 @@ const SERVICE_ICONS: Record<string, React.ReactNode> = {
 }
 
 export function ServicesScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen) => void }) {
+  const { SERVICES } = useData()
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header title="Serviços" onBack={onBack} />

@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
-import { AI_SUGGESTIONS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { BTALogo, Ic } from '@/components'
 
 export function AIScreen({ onBack }: { onBack: () => void }) {
+  const { AI_SUGGESTIONS } = useData()
   const [messages, setMessages] = useState<{ from: 'user' | 'ai'; text: string }[]>([{ from: 'ai', text: 'Olá! Sou a IA do BTA. Posso ajudar com análises de mercado, cálculos de operação, dúvidas sobre pecuária e avaliação de lotes. Por onde começamos?' }])
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)

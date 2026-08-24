@@ -1,12 +1,11 @@
-import {
-  NOTIFICATIONS, MARKET_DATA, RADAR_ALERTS, OPPORTUNITIES, LOTS, COURSES,
-} from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen, Tab } from '@/core/navigation'
 import { Ic, BTALogo, PriceCard, SectionTitle, LotCard, Btn, BottomNav } from '@/components'
 
 export function HomeScreen({ onNavigate, onTab }: {
   onNavigate: (s: Screen, lotId?: number) => void; onTab: (t: Tab) => void
 }) {
+  const { NOTIFICATIONS, MARKET_DATA, RADAR_ALERTS, OPPORTUNITIES, LOTS, COURSES } = useData()
   const unread = NOTIFICATIONS.filter(n => !n.read).length
   const actions = [
     { label: 'Comprar gado', icon: <Ic.Cart />, fn: () => onNavigate('buy') },

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { LOTS } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { BuyFilters } from '@/core/navigation'
 import { Header, Ic, LotCard } from '@/components'
 
@@ -22,10 +23,10 @@ function matchesLoosely(value: string, query: string) {
   return false
 }
 
-function applyFilters(filters: BuyFilters | null | undefined) {
-  if (!filters) return LOTS
+function applyFilters(filters: BuyFilters | null | undefined, lots: Lot[]) {
+  if (!filters) return lots
   const q = filters.query?.trim().toLowerCase()
-  return LOTS.filter(lot => {
+  return lots.filter(lot => {
     if (filters.category && lot.category !== filters.category) return false
     if (filters.breed && !matchesLoosely(lot.breed, filters.breed)) return false
     if (filters.purpose && !matchesLoosely(lot.purpose, filters.purpose)) return false
@@ -43,10 +44,11 @@ function applyFilters(filters: BuyFilters | null | undefined) {
 export function ResultsScreen({ onBack, onLot, onCompare, filters }: {
   onBack: () => void; onLot: (id: number) => void; onCompare: (ids: number[]) => void; filters?: BuyFilters | null
 }) {
+  const { LOTS } = useData()
   const [sort, setSort] = useState('score')
   const [comparing, setComparing] = useState<number[]>([])
   const [saved, setSaved] = useState<number[]>([])
-  const filtered = applyFilters(filters)
+  const filtered = applyFilters(filters, LOTS)
   const sorted = [...filtered].sort((a, b) => sort === 'score' ? b.score - a.score : a.distance - b.distance)
 
   const toggleCompare = (id: number) => {

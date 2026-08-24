@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { SAVED_SIMULATIONS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen, Tab } from '@/core/navigation'
 import { BTALogo, Ic, SectionTitle, BottomNav } from '@/components'
 
 export function BusinessScreen({ onTab, onLot, onNavigate }: {
   onTab: (t: Tab) => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void
 }) {
+  const { SAVED_SIMULATIONS } = useData()
   const [period, setPeriod] = useState('Mês')
   const kpis = [
     { label: 'Capital investido', value: 'R$ 287.400', color: 'text-bta-primary' },

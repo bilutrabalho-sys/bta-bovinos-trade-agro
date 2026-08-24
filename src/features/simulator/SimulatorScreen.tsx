@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { LOTS, type Lot } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, Btn, Ic } from '@/components'
 
 // Picks up to 2 other lots of the same category as the simulated lot, so
 // "Comparar cenário" opens the Comparador grounded in the numbers just
 // simulated instead of an unrelated/default lot pair.
-function relatedLotIds(lot: Lot): number[] {
-  const others = LOTS
+function relatedLotIds(lot: Lot, lots: Lot[]): number[] {
+  const others = lots
     .filter(l => l.id !== lot.id && l.category === lot.category)
     .sort((a, b) => b.score - a.score)
     .slice(0, 2)
@@ -18,6 +19,7 @@ function relatedLotIds(lot: Lot): number[] {
 export function SimulatorScreen({ onBack, onNavigate, onCompare, prefillLot }: {
   onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void; onCompare: (ids: number[]) => void; prefillLot?: Lot | null
 }) {
+  const { LOTS } = useData()
   const [qty, setQty] = useState(String(prefillLot?.quantity ?? 50))
   const [buyPrice, setBuyPrice] = useState(String(prefillLot ? (prefillLot.priceUnit === '/@' ? prefillLot.price : Math.round(prefillLot.price / (prefillLot.weight / 15))) : 2400))
   const [freight, setFreight] = useState(String(prefillLot?.freight ?? 5000))
@@ -115,7 +117,7 @@ export function SimulatorScreen({ onBack, onNavigate, onCompare, prefillLot }: {
             sound="tap"
             disabled={!prefillLot}
             title={!prefillLot ? 'Simule a partir de um lote para comparar' : undefined}
-            onClick={() => prefillLot && onCompare(relatedLotIds(prefillLot))}
+            onClick={() => prefillLot && onCompare(relatedLotIds(prefillLot, LOTS))}
             className={`flex-1 py-3 rounded-xl border font-display font-semibold text-sm flex items-center justify-center gap-1.5 border-bta-border ${prefillLot ? 'text-bta-text' : 'text-bta-muted opacity-50 cursor-not-allowed'}`}
           >
             <Ic.Scale /> Comparar cenário

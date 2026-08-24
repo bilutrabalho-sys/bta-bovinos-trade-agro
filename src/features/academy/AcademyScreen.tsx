@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { COURSES } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Tab } from '@/core/navigation'
 import { BTALogo, Chip, Ic, BottomNav } from '@/components'
 
 export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void; onTab: (t: Tab) => void; onLesson: (courseId: number) => void }) {
+  const { COURSES } = useData()
   const [cat, setCat] = useState('Todos')
   const categories = ['Todos', 'Comece aqui', 'Compra', 'Venda', 'Mercado', 'Finanças', 'Genética', 'Gestão']
   const filtered = cat === 'Todos' ? COURSES : COURSES.filter(c => c.category === cat)

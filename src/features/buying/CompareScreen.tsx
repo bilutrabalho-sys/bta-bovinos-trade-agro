@@ -1,10 +1,12 @@
-import { LOTS, FARMS, type Lot } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, VerifiedBadge, Ic } from '@/components'
 
 export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
   lotIds: number[]; onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void
 }) {
+  const { LOTS, FARMS } = useData()
   const lots = lotIds.map(id => LOTS.find(l => l.id === id)!).filter(Boolean)
 
   const rows: { label: string; key: keyof Lot | string; fmt?: (v: unknown, lot: Lot) => string; lower?: boolean }[] = [

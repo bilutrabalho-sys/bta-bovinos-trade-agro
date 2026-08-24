@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { sounds } from '@/utils/sound'
-import { RADAR_ALERTS, LOTS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, Ic } from '@/components'
 
 export function RadarScreen({ onBack, onLot }: { onBack: () => void; onLot: (id: number) => void }) {
+  const { RADAR_ALERTS, LOTS } = useData()
   const [alerts, setAlerts] = useState(RADAR_ALERTS)
   const [showNew, setShowNew] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)

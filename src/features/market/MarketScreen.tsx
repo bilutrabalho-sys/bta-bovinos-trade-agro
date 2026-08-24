@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { MARKET_DATA, LOTS } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen, Tab } from '@/core/navigation'
 import { Ic, BTALogo, Chip, SectionTitle, BottomNav } from '@/components'
 
@@ -10,10 +11,10 @@ type MarketCategory = 'Boi Gordo' | 'Vaca' | 'Novilha' | 'Bezerro' | 'Garrote'
 // Picks up to 3 lots of the given category from distinct states, so
 // "Comparar regiões" opens the Comparador with a real regional spread
 // instead of the screen's leftover/default lot selection.
-function regionalCompareLots(category: MarketCategory): number[] {
+function regionalCompareLots(category: MarketCategory, lots: Lot[]): number[] {
   const ids: number[] = []
   const seenStates = new Set<string>()
-  for (const lot of LOTS) {
+  for (const lot of lots) {
     if (lot.category !== category) continue
     if (seenStates.has(lot.state)) continue
     seenStates.add(lot.state)
@@ -26,6 +27,7 @@ function regionalCompareLots(category: MarketCategory): number[] {
 export function MarketScreen({ onBack, onTab, onNavigate, onCompare }: {
   onBack: () => void; onTab: (t: Tab) => void; onNavigate: (s: Screen) => void; onCompare: (ids: number[]) => void
 }) {
+  const { MARKET_DATA, LOTS } = useData()
   const [period, setPeriod] = useState<MarketPeriod>('30D')
   const [category, setCategory] = useState<MarketCategory>('Boi Gordo')
   const data = MARKET_DATA[category]
@@ -157,7 +159,7 @@ export function MarketScreen({ onBack, onTab, onNavigate, onCompare }: {
 
           {/* Regional */}
           <div className="bg-bta-surface rounded-2xl border border-bta-border p-4">
-            <SectionTitle action="Comparar regiões" onAction={() => onCompare(regionalCompareLots(category))}>Por região</SectionTitle>
+            <SectionTitle action="Comparar regiões" onAction={() => onCompare(regionalCompareLots(category, LOTS))}>Por região</SectionTitle>
             <div className="space-y-3">
               {[{ region: 'São Paulo (interior)', price: 316, change: +1.8 }, { region: 'Minas Gerais (Triângulo)', price: 312, change: +0.5 }, { region: 'Mato Grosso', price: 308, change: -0.9 }, { region: 'Mato Grosso do Sul', price: 310, change: +1.1 }].map(r => (
                 <div key={r.region} className="flex items-center justify-between">

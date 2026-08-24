@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { OPPORTUNITIES, LOTS, type Lot } from '@/data/mock'
+import type { Lot } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import { Header, BTAScore, Ic } from '@/components'
 
 // Picks up to 2 other lots of the same category as the opportunity, so
 // "Comparar" opens the Comparador with a real second/third lot instead of
 // a lone lot that the Comparador would falsely mark as "winner" on every row.
-function relatedLotIds(lot: Lot): number[] {
-  const others = LOTS
+function relatedLotIds(lot: Lot, lots: Lot[]): number[] {
+  const others = lots
     .filter(l => l.id !== lot.id && l.category === lot.category)
     .sort((a, b) => b.score - a.score)
     .slice(0, 2)
@@ -15,6 +16,7 @@ function relatedLotIds(lot: Lot): number[] {
 }
 
 export function OpportunitiesScreen({ onBack, onLot, onCompare }: { onBack: () => void; onLot: (id: number) => void; onCompare: (ids: number[]) => void }) {
+  const { OPPORTUNITIES, LOTS } = useData()
   const [ignored, setIgnored] = useState<number[]>([])
   const visible = OPPORTUNITIES.filter(opp => !ignored.includes(opp.id))
   return (
@@ -51,7 +53,7 @@ export function OpportunitiesScreen({ onBack, onLot, onCompare }: { onBack: () =
                   <div className="flex gap-2 mt-3">
                     <button
                       className="flex items-center gap-1 text-bta-primary text-[10px] font-display font-semibold border border-bta-primary px-3 py-1.5 rounded-full"
-                      onClick={e => { e.stopPropagation(); onCompare(relatedLotIds(lot)) }}
+                      onClick={e => { e.stopPropagation(); onCompare(relatedLotIds(lot, LOTS)) }}
                     >
                       <Ic.Scale /> Comparar
                     </button>

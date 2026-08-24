@@ -1,8 +1,9 @@
-import { LOTS, FARMS } from '@/data/mock'
+import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
 import { Header, Btn, Ic } from '@/components'
 
 export function DealClosedScreen({ lotId, onBack, onNavigate }: { lotId: number; onBack: () => void; onNavigate: (s: Screen) => void }) {
+  const { LOTS, FARMS } = useData()
   const lot = LOTS.find(l => l.id === lotId)!
   const steps = [
     { label: 'Negócio confirmado', done: true },
