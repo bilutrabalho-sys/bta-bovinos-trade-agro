@@ -7,6 +7,44 @@
 
 ---
 
+## 0. Atualização mais recente — banco ligado ao app (2026-08-24)
+
+O app agora pode consumir **dados reais de um PostgreSQL** via um backend próprio,
+ou continuar com os dados fictícios (mock). O padrão continua sendo **mock** (o app
+roda sozinho, sem backend).
+
+**Arquitetura:** app React (`src/`) → **backend** (`server/`, Node/Express/TS + `pg`)
+→ **PostgreSQL puro** (conexão por `DATABASE_URL` — local agora, nuvem depois). Sem Supabase.
+
+**Como rodar com dados reais (ponta a ponta):**
+1. Ter um PostgreSQL rodando localmente (instalador oficial; sobe como serviço do Windows)
+   e criar o banco: `createdb bta` (ou `CREATE DATABASE bta;`).
+2. Backend:
+   ```
+   cd server
+   copy .env.example .env      # ajuste DATABASE_URL se necessário
+   npm install
+   npm run db:setup            # aplica migrations + hardening + seed (use -- --reset p/ zerar)
+   npm run dev                 # sobe a API em http://localhost:3001/api
+   ```
+3. App em modo api: criar um `.env` na raiz (baseado em `.env.example`) com
+   `VITE_DATA_SOURCE=api` e `VITE_API_URL=http://localhost:3001`, e rodar `npm run dev`.
+   (Sem `.env`, o app usa mock — não precisa de backend.)
+
+**Validado até aqui:** backend e app compilam limpo (`tsc`) e o app builda; as 14 queries
+de leitura dos endpoints rodaram contra um Postgres real sem erro. O teste ao vivo
+(app → API → Postgres) precisa de um Postgres **servidor** rodando (este sandbox não sobe
+servidor; roda só single-user), então o ponta-a-ponta é feito na sua máquina.
+
+**Atenção:** em modo `api`, o `priceTotal` dos lotes `/@` vem **correto** do banco
+(fórmula por arroba); o `mock.ts` ainda tem o valor antigo/errado. Os números divergem
+entre os modos de propósito — o banco é a fonte correta.
+
+**Pendente do backend:** wiring de autenticação (provedor externo) + RLS por request
+(`SET LOCAL app.current_user_id`) quando houver login; hoje usa `DEFAULT_USER_ID=1` (o "Rafael" do seed).
+
+---
+
 ## 1. O que é o projeto
 
 App **BTA — Bovinos Trade Agro** (agritech de pecuária). Protótipo funcional
