@@ -1,14 +1,30 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { MARKET_DATA } from '@/data/mock'
+import { MARKET_DATA, LOTS } from '@/data/mock'
 import type { Screen, Tab } from '@/core/navigation'
 import { Ic, BTALogo, Chip, SectionTitle, BottomNav } from '@/components'
 
 type MarketPeriod = '7D' | '30D' | '90D'
 type MarketCategory = 'Boi Gordo' | 'Vaca' | 'Novilha' | 'Bezerro' | 'Garrote'
 
-export function MarketScreen({ onBack, onTab, onNavigate }: {
-  onBack: () => void; onTab: (t: Tab) => void; onNavigate: (s: Screen) => void
+// Picks up to 3 lots of the given category from distinct states, so
+// "Comparar regiões" opens the Comparador with a real regional spread
+// instead of the screen's leftover/default lot selection.
+function regionalCompareLots(category: MarketCategory): number[] {
+  const ids: number[] = []
+  const seenStates = new Set<string>()
+  for (const lot of LOTS) {
+    if (lot.category !== category) continue
+    if (seenStates.has(lot.state)) continue
+    seenStates.add(lot.state)
+    ids.push(lot.id)
+    if (ids.length === 3) break
+  }
+  return ids
+}
+
+export function MarketScreen({ onBack, onTab, onNavigate, onCompare }: {
+  onBack: () => void; onTab: (t: Tab) => void; onNavigate: (s: Screen) => void; onCompare: (ids: number[]) => void
 }) {
   const [period, setPeriod] = useState<MarketPeriod>('30D')
   const [category, setCategory] = useState<MarketCategory>('Boi Gordo')
@@ -23,7 +39,7 @@ export function MarketScreen({ onBack, onTab, onNavigate }: {
             <BTALogo dark />
             <div className="flex items-center gap-2">
               <button onClick={() => onNavigate('radar')} className="flex items-center gap-1.5 bg-bta-amber/20 border border-bta-amber/30 text-bta-amber text-xs font-display font-bold px-3 py-1.5 rounded-full">
-                📡 Criar alerta
+                <Ic.Radar /> Criar alerta
               </button>
               <button onClick={() => onNavigate('notifications')} className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 text-white/70">
                 <Ic.Bell count={3} />
@@ -41,7 +57,7 @@ export function MarketScreen({ onBack, onTab, onNavigate }: {
           </div>
 
           {/* Price hero with chart */}
-          <div className="bg-bta-surface rounded-2xl border border-bta-border shadow-sm p-5">
+          <div className="bg-bta-surface rounded-2xl border border-bta-border card-shadow p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <p className="text-bta-muted text-xs font-medium mb-1">{category}</p>
@@ -66,17 +82,17 @@ export function MarketScreen({ onBack, onTab, onNavigate }: {
                 <AreaChart data={history} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#123B2A" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="#123B2A" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--color-bta-primary)" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="var(--color-bta-primary)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E4E8E5" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#68736D', fontFamily: 'Inter' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 9, fill: '#68736D', fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E4E8E5', borderRadius: 12, fontSize: 12, fontFamily: 'Inter' }} labelStyle={{ color: '#68736D' }}
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-bta-border)" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-bta-muted)', fontFamily: 'Inter' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 9, fill: 'var(--color-bta-muted)', fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: 'var(--color-bta-surface)', border: '1px solid var(--color-bta-border)', borderRadius: 12, fontSize: 12, fontFamily: 'Inter' }} labelStyle={{ color: 'var(--color-bta-muted)' }}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     formatter={(v: any) => [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}${data.unit}`, category]} />
-                  <Area type="monotone" dataKey="value" stroke="#123B2A" strokeWidth={2} fill="url(#priceGrad)" dot={false} />
+                  <Area type="monotone" dataKey="value" stroke="var(--color-bta-primary)" strokeWidth={2} fill="url(#priceGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -106,10 +122,18 @@ export function MarketScreen({ onBack, onTab, onNavigate }: {
           {/* Actions */}
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => onNavigate('buy')} className="flex items-center justify-center gap-2 bg-bta-primary text-white font-display font-bold text-sm py-3 rounded-xl">
-              🛒 Ver lotes
+              <Ic.Cart /> Ver lotes
             </button>
             <button onClick={() => onNavigate('radar')} className="flex items-center justify-center gap-2 border border-bta-primary text-bta-primary font-display font-bold text-sm py-3 rounded-xl">
-              📡 Criar alerta
+              <Ic.Radar /> Criar alerta
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => onTab('academy')} className="flex items-center justify-center gap-2 border border-bta-border text-bta-text font-display font-semibold text-xs py-3 rounded-xl">
+              <Ic.Book /> Aprender sobre esse indicador
+            </button>
+            <button onClick={() => onNavigate('ai')} className="flex items-center justify-center gap-2 border border-bta-border text-bta-text font-display font-semibold text-xs py-3 rounded-xl">
+              <Ic.Sparkles /> Perguntar à BTA IA
             </button>
           </div>
 
@@ -133,7 +157,7 @@ export function MarketScreen({ onBack, onTab, onNavigate }: {
 
           {/* Regional */}
           <div className="bg-bta-surface rounded-2xl border border-bta-border p-4">
-            <SectionTitle>Por região</SectionTitle>
+            <SectionTitle action="Comparar regiões" onAction={() => onCompare(regionalCompareLots(category))}>Por região</SectionTitle>
             <div className="space-y-3">
               {[{ region: 'São Paulo (interior)', price: 316, change: +1.8 }, { region: 'Minas Gerais (Triângulo)', price: 312, change: +0.5 }, { region: 'Mato Grosso', price: 308, change: -0.9 }, { region: 'Mato Grosso do Sul', price: 310, change: +1.1 }].map(r => (
                 <div key={r.region} className="flex items-center justify-between">

@@ -74,7 +74,7 @@ Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer conflitos 
           onClick={() => { sounds.select(); setAcceptedTerms(t => !t) }}
           className="flex items-start gap-3 text-left w-full"
         >
-          <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${acceptedTerms ? 'bg-bta-primary border-bta-primary' : 'bg-bta-bg border-bta-border'}`}>
+          <div className={`w-5 h-5 rounded-lg border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${acceptedTerms ? 'bg-bta-primary border-bta-primary' : 'bg-bta-bg border-bta-border'}`}>
             {acceptedTerms && <Ic.Check />}
           </div>
           <p className="text-bta-text text-xs leading-relaxed">
@@ -86,7 +86,7 @@ Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer conflitos 
           onClick={() => { sounds.select(); setAcceptedPrivacy(p => !p) }}
           className="flex items-start gap-3 text-left w-full"
         >
-          <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${acceptedPrivacy ? 'bg-bta-primary border-bta-primary' : 'bg-bta-bg border-bta-border'}`}>
+          <div className={`w-5 h-5 rounded-lg border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${acceptedPrivacy ? 'bg-bta-primary border-bta-primary' : 'bg-bta-bg border-bta-border'}`}>
             {acceptedPrivacy && <Ic.Check />}
           </div>
           <p className="text-bta-text text-xs leading-relaxed">
@@ -98,7 +98,7 @@ Fica eleito o foro da Comarca de São Paulo/SP para dirimir quaisquer conflitos 
           sound="cta"
           onClick={onAccept}
           disabled={!canProceed}
-          className={`w-full font-display font-bold text-base py-4 rounded-2xl transition-all ${canProceed ? 'bg-bta-primary text-white' : 'bg-bta-border text-bta-muted cursor-not-allowed'}`}
+          className={`w-full font-display font-bold text-base py-4 rounded-xl transition-all ${canProceed ? 'bg-bta-primary text-white' : 'bg-bta-border text-bta-muted cursor-not-allowed'}`}
         >
           Aceitar e continuar
         </Btn>

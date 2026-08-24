@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Screen } from '@/core/navigation'
-import { Header } from '@/components'
+import { Header, Ic } from '@/components'
 
 export function BTAPathScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen) => void }) {
   const [step, setStep] = useState(0)
@@ -28,7 +28,7 @@ export function BTAPathScreen({ onBack, onNavigate }: { onBack: () => void; onNa
         <Header title="BTA Caminho" onBack={onBack} />
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
           <div className="flex flex-col items-center text-center gap-3">
-            <div className="w-20 h-20 bg-bta-primary rounded-2xl flex items-center justify-center text-4xl">🧭</div>
+            <div className="w-20 h-20 bg-bta-primary rounded-2xl flex items-center justify-center text-white scale-[1.4]"><Ic.Compass /></div>
             <div>
               <p className="text-bta-muted text-sm">Seu caminho recomendado</p>
               <h1 className="font-display font-black text-bta-text text-2xl mt-1" style={{ letterSpacing: '-0.02em' }}>{profile}</h1>
@@ -46,9 +46,9 @@ export function BTAPathScreen({ onBack, onNavigate }: { onBack: () => void; onNa
             </div>
           </div>
           <div className="space-y-3">
-            <button onClick={() => onNavigate('academy')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl">Ir para Academy</button>
+            <button onClick={() => onNavigate('academy')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl">Ir para Academy</button>
             <button onClick={() => onNavigate('simulator')} className="w-full border border-bta-border text-bta-text font-display font-semibold text-sm py-3 rounded-2xl">Abrir Simulador</button>
-            <button onClick={() => onNavigate('ai')} className="w-full border border-bta-border text-bta-text font-display font-semibold text-sm py-3 rounded-2xl">✨ Conversar com BTA IA</button>
+            <button onClick={() => onNavigate('ai')} className="w-full border border-bta-border text-bta-text font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5"><Ic.Sparkles /> Conversar com BTA IA</button>
           </div>
         </div>
       </div>

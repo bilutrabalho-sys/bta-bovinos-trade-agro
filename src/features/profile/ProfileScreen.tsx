@@ -1,16 +1,18 @@
+import { useState } from 'react'
 import type { Screen, Tab } from '@/core/navigation'
-import { BTALogo, Ic, BottomNav } from '@/components'
+import { BTALogo, Ic, BottomNav, Btn } from '@/components'
 
 export function ProfileScreen({ onTab, onNavigate }: { onTab: (t: Tab) => void; onNavigate: (s: Screen) => void }) {
-  const menuItems = [
-    { icon: '🔔', label: 'Notificações', screen: 'notifications' as Screen },
-    { icon: '❤️', label: 'Favoritos', screen: 'favorites' as Screen },
-    { icon: '🎓', label: 'BTA Academy', screen: 'academy' as Screen },
-    { icon: '📡', label: 'Radar', screen: 'radar' as Screen },
-    { icon: '🤝', label: 'Minhas negociações', screen: 'negotiation' as Screen },
-    { icon: '👑', label: 'BTA PRO', screen: 'bta-pro' as Screen },
-    { icon: '🛠️', label: 'Central de Serviços', screen: 'services' as Screen },
-    { icon: '⚙️', label: 'Configurações', screen: null as unknown as Screen },
+  const [logoutState, setLogoutState] = useState<'idle' | 'confirm' | 'done'>('idle')
+  const menuItems: { icon: React.ReactNode; label: string; screen?: Screen; soon?: boolean }[] = [
+    { icon: <Ic.Bell />, label: 'Notificações', screen: 'notifications' },
+    { icon: <Ic.Heart />, label: 'Favoritos', screen: 'favorites' },
+    { icon: <Ic.Book />, label: 'BTA Academy', screen: 'academy' },
+    { icon: <Ic.Radar />, label: 'Radar', screen: 'radar' },
+    { icon: <Ic.Handshake />, label: 'Minhas negociações', screen: 'business' },
+    { icon: <Ic.Crown />, label: 'BTA PRO', screen: 'bta-pro' },
+    { icon: <Ic.Wrench />, label: 'Central de Serviços', screen: 'services' },
+    { icon: <Ic.Gear />, label: 'Configurações', soon: true },
   ]
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -27,7 +29,7 @@ export function ProfileScreen({ onTab, onNavigate }: { onTab: (t: Tab) => void; 
           </div>
         </div>
         <div className="px-5 py-5 space-y-5">
-          <div className="bg-bta-surface rounded-2xl border border-bta-border -mt-8 shadow-md p-4">
+          <div className="bg-bta-surface rounded-2xl border border-bta-border -mt-8 card-shadow p-4">
             <div className="grid grid-cols-3 divide-x divide-bta-border">
               {[{ label: 'Nível', value: 'Iniciante' }, { label: 'Negociações', value: '12' }, { label: 'XP Total', value: '380' }].map(s => (
                 <div key={s.label} className="text-center px-3">
@@ -54,13 +56,25 @@ export function ProfileScreen({ onTab, onNavigate }: { onTab: (t: Tab) => void; 
           </div>
           <div className="bg-bta-surface rounded-2xl border border-bta-border overflow-hidden">
             {menuItems.map((item, i) => (
-              <button key={item.label} onClick={() => item.screen && onNavigate(item.screen)} className={`w-full flex items-center justify-between px-4 py-4 text-left transition-colors hover:bg-bta-bg ${i < menuItems.length - 1 ? 'border-b border-bta-border' : ''}`}>
-                <div className="flex items-center gap-3"><span>{item.icon}</span><span className="font-display font-medium text-bta-text text-sm">{item.label}</span></div>
-                <Ic.ChevronRight />
+              <button key={item.label} onClick={() => item.screen && onNavigate(item.screen)} disabled={item.soon} className={`w-full flex items-center justify-between px-4 py-4 text-left transition-colors ${item.soon ? '' : 'hover:bg-bta-bg'} ${i < menuItems.length - 1 ? 'border-b border-bta-border' : ''}`}>
+                <div className="flex items-center gap-3"><span className="text-bta-muted">{item.icon}</span><span className={`font-display font-medium text-sm ${item.soon ? 'text-bta-muted' : 'text-bta-text'}`}>{item.label}</span></div>
+                {item.soon
+                  ? <span className="text-[10px] font-display font-bold text-bta-muted bg-bta-muted/10 px-2 py-0.5 rounded-full">Em breve</span>
+                  : <Ic.ChevronRight />}
               </button>
             ))}
           </div>
-          <button className="w-full py-4 text-bta-error font-display font-semibold text-sm">Sair da conta</button>
+          {logoutState === 'done' ? (
+            <p className="w-full py-4 text-center text-bta-muted font-display font-semibold text-sm flex items-center justify-center gap-1.5"><Ic.Check /> Sessão encerrada</p>
+          ) : logoutState === 'confirm' ? (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <span className="text-bta-muted text-xs font-display font-medium">Sair da conta?</span>
+              <button onClick={() => setLogoutState('idle')} className="text-bta-text text-xs font-display font-semibold px-3 py-1.5 rounded-lg border border-bta-border">Cancelar</button>
+              <Btn sound="cta" onClick={() => setLogoutState('done')} className="text-bta-error text-xs font-display font-bold px-3 py-1.5 rounded-lg border border-bta-error">Confirmar saída</Btn>
+            </div>
+          ) : (
+            <Btn sound="tap" onClick={() => setLogoutState('confirm')} className="w-full py-4 text-bta-error font-display font-semibold text-sm">Sair da conta</Btn>
+          )}
         </div>
       </div>
       <BottomNav active="profile" onTab={onTab} />

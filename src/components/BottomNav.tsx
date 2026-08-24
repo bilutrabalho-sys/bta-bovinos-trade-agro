@@ -27,8 +27,7 @@ export function BottomNav({ active, onTab }: { active: Tab; onTab: (t: Tab) => v
           >
             {/* amber top-line indicator */}
             <div
-              className="absolute top-0 left-3 right-3 h-[2.5px] rounded-full transition-all duration-300"
-              style={{ background: isActive ? '#D6A84F' : 'transparent' }}
+              className={`absolute top-0 left-3 right-3 h-[2.5px] rounded-full transition-all duration-300 ${isActive ? 'bg-bta-amber' : 'bg-transparent'}`}
             />
             <span
               key={animKey === t.key ? `${t.key}-anim` : t.key}

@@ -374,33 +374,323 @@ export const TRANSPORTERS = [
   { id: 3, name: 'Transporte Rural Centro-Oeste', rating: 4.4, trips: 89, capacity: 52, pricePerKm: 4.2, verified: false, location: 'Uberaba, MG', available: false },
 ]
 
-export const LESSON = {
-  id: 1,
-  title: 'O que é arroba e como calcular',
-  category: 'Comece aqui',
-  level: 'Iniciante',
-  duration: '8 min',
-  xp: 50,
-  sections: [
-    {
-      heading: 'O que é a arroba?',
-      body: 'A arroba (símbolo @) é a principal unidade de peso usada no mercado bovino brasileiro. Cada arroba equivale a 15 quilogramas de peso vivo do animal.',
-    },
-    {
-      heading: 'Como calcular?',
-      body: 'Divida o peso do animal por 15. Um boi de 420 kg tem 28 arrobas. Se o preço está a R$ 315/@, o valor do animal é R$ 315 × 28 = R$ 8.820.',
-    },
-    {
-      heading: 'Exemplo prático',
-      body: 'Você está analisando um lote de 120 Nelore a R$ 315/@, com peso médio de 380 kg. Cada animal tem 25,3 arrobas. O valor por cabeça é R$ 7.969. O lote completo: R$ 956.280.',
-    },
-  ],
-  keyConcepts: ['1 @ = 15 kg', 'Arrobas = Peso ÷ 15', 'Valor = Arrobas × Preço/@', 'Rendimento de carcaça ≈ 52% do peso vivo'],
-  quiz: [
-    { q: 'Um boi de 420 kg tem quantas arrobas?', opts: ['24 @', '28 @', '30 @'], answer: 1 },
-    { q: 'Se o preço é R$ 315/@ e o boi tem 28@, qual o valor?', opts: ['R$ 7.560', 'R$ 8.820', 'R$ 9.450'], answer: 1 },
-  ],
-}
+export const LESSONS = [
+  {
+    id: 1,
+    title: 'O que é arroba e como calcular',
+    category: 'Comece aqui',
+    level: 'Iniciante',
+    duration: '8 min',
+    xp: 50,
+    sections: [
+      {
+        heading: 'O que é a arroba?',
+        body: 'A arroba (símbolo @) é a principal unidade de peso usada no mercado bovino brasileiro. Cada arroba equivale a 15 quilogramas de peso vivo do animal.',
+      },
+      {
+        heading: 'Como calcular?',
+        body: 'Divida o peso do animal por 15. Um boi de 420 kg tem 28 arrobas. Se o preço está a R$ 315/@, o valor do animal é R$ 315 × 28 = R$ 8.820.',
+      },
+      {
+        heading: 'Exemplo prático',
+        body: 'Você está analisando um lote de 120 Nelore a R$ 315/@, com peso médio de 380 kg. Cada animal tem 25,3 arrobas. O valor por cabeça é R$ 7.969. O lote completo: R$ 956.280.',
+      },
+    ],
+    keyConcepts: ['1 @ = 15 kg', 'Arrobas = Peso ÷ 15', 'Valor = Arrobas × Preço/@', 'Rendimento de carcaça ≈ 52% do peso vivo'],
+    quiz: [
+      { q: 'Um boi de 420 kg tem quantas arrobas?', opts: ['24 @', '28 @', '30 @'], answer: 1 },
+      { q: 'Se o preço é R$ 315/@ e o boi tem 28@, qual o valor?', opts: ['R$ 7.560', 'R$ 8.820', 'R$ 9.450'], answer: 1 },
+    ],
+  },
+  {
+    id: 2,
+    title: 'Como analisar um lote antes de comprar',
+    category: 'Compra',
+    level: 'Iniciante',
+    duration: '15 min',
+    xp: 80,
+    sections: [
+      {
+        heading: 'Uniformidade em primeiro lugar',
+        body: 'Um bom lote tem peso, idade e acabamento parecidos entre os animais. Lotes desuniformes escondem animais fracos entre os fortes e complicam a revenda ou o abate em conjunto.',
+      },
+      {
+        heading: 'BTA Score e selo verificado',
+        body: 'O BTA Score resume sanidade, documentação, histórico do vendedor e qualidade das fotos em uma nota de 0 a 100. Lotes com selo "Verificado" já passaram por checagem de GTA e vacinação — priorize-os ao comparar preços parecidos.',
+      },
+      {
+        heading: 'Documentação e histórico do vendedor',
+        body: 'Confira a GTA (Guia de Trânsito Animal), o calendário de vacinação e o histórico de negociações da fazenda no BTA. Um vendedor com alta taxa de conclusão de negócios reduz o risco de a compra não se concretizar como combinado.',
+      },
+    ],
+    keyConcepts: [
+      'Uniformidade do lote reduz risco e facilita revenda',
+      'BTA Score acima de 85 indica lote consistente',
+      'Sempre confira GTA e vacinação antes de fechar',
+      'Histórico de conclusão do vendedor é tão importante quanto o preço',
+    ],
+    quiz: [
+      { q: 'O que indica que um lote é uniforme?', opts: ['Preço baixo por arroba', 'Peso, idade e acabamento parecidos entre os animais', 'Ter mais de 100 cabeças'], answer: 1 },
+      { q: 'O que o selo "Verificado" no BTA garante?', opts: ['Frete grátis', 'Checagem de GTA e vacinação já realizada', 'Desconto automático no preço'], answer: 1 },
+    ],
+  },
+  {
+    id: 3,
+    title: 'Entendendo o custo de frete na pecuária',
+    category: 'Compra',
+    level: 'Iniciante',
+    duration: '12 min',
+    xp: 70,
+    sections: [
+      {
+        heading: 'Como o frete é formado',
+        body: 'O valor do frete considera a distância entre a fazenda de origem e o destino, o tipo de caminhão (simples ou bitrem, com ou sem segundo piso) e a quantidade de cabeças transportadas. Combustível, pedágio e motorista compõem a maior parte do custo.',
+      },
+      {
+        heading: 'Frete total x frete por cabeça',
+        body: 'Um caminhão boiadeiro com dois pisos carrega até 40 cabeças de gado adulto. Para comparar propostas, divida sempre o frete total pelo número de animais: frete por cabeça = frete total ÷ quantidade. Isso evita comparar lotes de tamanhos diferentes de forma injusta.',
+      },
+      {
+        heading: 'Impacto no preço final da compra',
+        body: 'O frete deve entrar na sua conta de custo total, junto com o preço do lote. Um lote mais barato, mas muito distante, pode sair mais caro que um lote um pouco mais caro e próximo, depois de somado o frete.',
+      },
+    ],
+    keyConcepts: [
+      'Frete cobre combustível, pedágio e motorista',
+      'Caminhão boiadeiro com 2 pisos carrega até 40 cabeças',
+      'Frete por cabeça = frete total ÷ nº de animais',
+      'Sempre some o frete ao preço do lote para comparar propostas',
+    ],
+    quiz: [
+      { q: 'O que mais pesa no custo do frete?', opts: ['A cor do caminhão', 'Distância, combustível e pedágio', 'O horário da viagem'], answer: 1 },
+      { q: 'Por que comparar o frete "por cabeça" e não só o frete total?', opts: ['Porque é obrigatório por lei', 'Porque permite comparar lotes de tamanhos diferentes de forma justa', 'Porque reduz o preço do lote'], answer: 1 },
+    ],
+  },
+  {
+    id: 4,
+    title: 'Como precificar seu gado para venda',
+    category: 'Venda',
+    level: 'Intermediário',
+    duration: '18 min',
+    xp: 100,
+    sections: [
+      {
+        heading: 'Use a referência regional como ponto de partida',
+        body: 'Acompanhe o preço médio da sua categoria (Boi Gordo, Novilha, Bezerro etc.) na sua região pelo Mercado do BTA antes de anunciar. Vender muito acima da referência afasta compradores; muito abaixo, deixa dinheiro na mesa.',
+      },
+      {
+        heading: 'Nunca venda abaixo do custo de produção',
+        body: 'Some o custo de aquisição, alimentação, sanidade e frete até o ponto de venda. Esse número é o seu piso: preços abaixo dele geram prejuízo mesmo que pareçam competitivos no mercado.',
+      },
+      {
+        heading: 'Ajuste por qualidade e verificação',
+        body: 'Lotes uniformes, com boa genética, documentação completa e selo BTA Verificado sustentam um preço acima da média regional. Use fotos recentes e um BTA Score alto para justificar o ágio na hora de negociar.',
+      },
+    ],
+    keyConcepts: [
+      'Preço de venda = referência regional ± ajuste de qualidade',
+      'Nunca venda abaixo do custo total de produção',
+      'Documentação completa e selo Verificado sustentam ágio',
+      'Acompanhe o Mercado do BTA antes de anunciar',
+    ],
+    quiz: [
+      { q: 'Qual é o "piso" que o preço de venda nunca deveria ficar abaixo?', opts: ['O preço médio nacional', 'O custo total de produção', 'O preço do concorrente mais barato'], answer: 1 },
+      { q: 'O que pode justificar vender acima da média regional?', opts: ['Lote uniforme, verificado e com boa genética', 'Anunciar em horário nobre', 'Usar mais fotos no anúncio, mesmo de baixa qualidade'], answer: 0 },
+    ],
+  },
+  {
+    id: 5,
+    title: 'Recria: do bezerro ao garrote',
+    category: 'Recria',
+    level: 'Intermediário',
+    duration: '22 min',
+    xp: 120,
+    sections: [
+      {
+        heading: 'O que é a fase de recria',
+        body: 'A recria é o período entre a desmama do bezerro (por volta de 7-8 meses, ~180 kg) e o momento em que o animal está pronto para a engorda, geralmente como garrote entre 15 e 18 meses. É a fase em que se forma a estrutura óssea e muscular do animal.',
+      },
+      {
+        heading: 'Ganho de peso esperado',
+        body: 'Em pastagem de boa qualidade, com suplementação mineral, o ganho médio esperado fica entre 0,5 e 0,7 kg por dia. Em pasto degradado sem suplemento, esse ganho pode cair para menos da metade — o que atrasa a saída do animal e aumenta o custo por arroba produzida.',
+      },
+      {
+        heading: 'Nutrição: pasto x suplementação',
+        body: 'A suplementação mineral é praticamente obrigatória em qualquer sistema de recria a pasto no Brasil. Em época seca, vale considerar suplementação proteica para sustentar o ganho de peso quando a pastagem perde qualidade.',
+      },
+    ],
+    keyConcepts: [
+      'Bezerro desmama com cerca de 180 kg, aos 7-8 meses',
+      'Meta de ganho na recria: 0,5-0,7 kg/dia a pasto',
+      'Garrote fica pronto para engorda entre 15 e 18 meses',
+      'Suplementação mineral é essencial; proteica ajuda na seca',
+    ],
+    quiz: [
+      { q: 'O que caracteriza a fase de recria?', opts: ['O período de terminação em confinamento', 'O período entre a desmama e a fase de engorda', 'O momento do abate'], answer: 1 },
+      { q: 'Qual o ganho de peso diário esperado em recria a pasto com suplementação mineral?', opts: ['0,1-0,2 kg/dia', '0,5-0,7 kg/dia', '2-3 kg/dia'], answer: 1 },
+    ],
+  },
+  {
+    id: 6,
+    title: 'Confinamento: custo, dieta e resultado',
+    category: 'Engorda',
+    level: 'Avançado',
+    duration: '30 min',
+    xp: 150,
+    sections: [
+      {
+        heading: 'Estrutura de custos do confinamento',
+        body: 'O custo diário por cabeça soma alimentação (a maior fatia), manejo, sanidade e depreciação da estrutura. Diferente da engorda a pasto, no confinamento o custo é previsível e recorrente todo dia — por isso o controle financeiro precisa ser rigoroso.',
+      },
+      {
+        heading: 'Dieta e conversão alimentar',
+        body: 'A conversão alimentar ideal em confinamento fica entre 6 e 8 kg de ração por kg de peso vivo ganho. Dietas com maior proporção de concentrado energético aceleram o ganho, mas encarecem o custo por arroba — o equilíbrio depende do preço dos insumos no momento.',
+      },
+      {
+        heading: 'Ponto de saída: peso e acabamento',
+        body: 'O confinamento reduz o tempo de terminação para cerca de 80 a 100 dias. A saída ideal combina peso de abate alvo (geralmente acima de 500 kg) com acabamento de gordura adequado — carcaça magra demais é desclassificada pelo frigorífico.',
+      },
+    ],
+    keyConcepts: [
+      'Custo diário por cabeça = alimentação + manejo + sanidade',
+      'Conversão alimentar ideal: 6-8 kg de ração por kg de ganho',
+      'Confinamento reduz terminação para 80-100 dias',
+      'Acabamento de gordura insuficiente é desclassificado no frigorífico',
+    ],
+    quiz: [
+      { q: 'O que é conversão alimentar?', opts: ['O preço da ração por saco', 'A quantidade de ração necessária para ganhar 1 kg de peso vivo', 'O tempo total de confinamento'], answer: 1 },
+      { q: 'Por que uma carcaça pode ser desclassificada mesmo com peso adequado?', opts: ['Por falta de acabamento de gordura', 'Por ser Nelore', 'Por ter mais de 24 meses'], answer: 0 },
+    ],
+  },
+  {
+    id: 7,
+    title: 'Leitura de mercado e timing de compra',
+    category: 'Mercado',
+    level: 'Intermediário',
+    duration: '20 min',
+    xp: 110,
+    sections: [
+      {
+        heading: 'Sazonalidade do boi gordo',
+        body: 'O preço da arroba costuma subir na entressafra (abril a setembro), quando a oferta de boi terminado a pasto diminui, e recuar na safra (outubro a março), com a chegada das águas e maior disponibilidade de animais prontos.',
+      },
+      {
+        heading: 'Leia o histórico antes de decidir',
+        body: 'Antes de comprar ou vender, compare o preço atual com o histórico de 30 e 90 dias no Mercado do BTA. Uma alta pontual pode ser ruído; uma tendência sustentada ao longo de semanas é um sinal mais confiável.',
+      },
+      {
+        heading: 'Fatores externos que movem o preço',
+        body: 'Câmbio e demanda por exportação afetam diretamente o preço do boi gordo no mercado interno — dólar alto tende a puxar o preço para cima. Fique de olho também no clima: secas prolongadas afetam a oferta de forragem e podem antecipar vendas.',
+      },
+    ],
+    keyConcepts: [
+      'Preço tende a subir na entressafra (abr-set)',
+      'Compare sempre o histórico de 30 e 90 dias antes de decidir',
+      'Câmbio alto e exportação forte pressionam o preço para cima',
+      'O Radar do BTA ajuda a comprar no ponto certo do ciclo',
+    ],
+    quiz: [
+      { q: 'Em qual período o preço do boi gordo costuma subir?', opts: ['Na safra, de outubro a março', 'Na entressafra, de abril a setembro', 'O preço não tem sazonalidade'], answer: 1 },
+      { q: 'O que um dólar em alta costuma pressionar no preço do boi gordo?', opts: ['Para baixo, sempre', 'Para cima, por puxar a demanda de exportação', 'Não tem relação nenhuma'], answer: 1 },
+    ],
+  },
+  {
+    id: 8,
+    title: 'Calculando margem e ponto de equilíbrio',
+    category: 'Finanças',
+    level: 'Intermediário',
+    duration: '25 min',
+    xp: 130,
+    sections: [
+      {
+        heading: 'A fórmula da margem',
+        body: 'Margem (%) = (Receita − Custo total) ÷ Custo total × 100. O custo total precisa incluir a compra do lote, alimentação, sanidade, frete e qualquer outro gasto até o momento da venda — esquecer um item infla a margem artificialmente.',
+      },
+      {
+        heading: 'O que é o ponto de equilíbrio',
+        body: 'É o preço de venda (ou peso final) em que a receita se iguala exatamente ao custo total, ou seja, margem zero. Vender abaixo do ponto de equilíbrio significa operar no prejuízo, mesmo que o negócio "pareça" ter dado lucro em caixa no curto prazo.',
+      },
+      {
+        heading: 'Use o Simulador antes de fechar negócio',
+        body: 'O Simulador do BTA projeta cenário base, otimista e pessimista a partir do preço de compra, custo de recria/engorda e preço de venda estimado. Rodar os três cenários evita fechar uma operação que só é lucrativa se tudo correr perfeitamente.',
+      },
+    ],
+    keyConcepts: [
+      'Margem = (Receita − Custo total) ÷ Custo total',
+      'Ponto de equilíbrio é onde receita = custo total (margem zero)',
+      'Sempre inclua frete e sanidade no custo total',
+      'Simule cenários otimista e pessimista antes de decidir',
+    ],
+    quiz: [
+      { q: 'O que representa o ponto de equilíbrio?', opts: ['O preço mais alto já pago por uma arroba', 'O ponto em que receita e custo total se igualam', 'A margem máxima possível'], answer: 1 },
+      { q: 'Por que esquecer o frete no cálculo de custo é perigoso?', opts: ['Porque infla artificialmente a margem calculada', 'Porque o frete nunca varia', 'Porque não afeta o resultado final'], answer: 0 },
+    ],
+  },
+  {
+    id: 9,
+    title: 'Genética Nelore: o que avaliar no lote',
+    category: 'Genética',
+    level: 'Avançado',
+    duration: '28 min',
+    xp: 140,
+    sections: [
+      {
+        heading: 'PO x PC: entenda a diferença',
+        body: 'Animais PO (Puro de Origem) têm registro genealógico completo e maior valor genético agregado, indicados para reprodução e melhoramento do rebanho. Animais PC (Puro por Cruza) e comerciais são majoritariamente destinados à produção de carne, com custo de aquisição menor.',
+      },
+      {
+        heading: 'Características de conformação a avaliar',
+        body: 'Observe estrutura óssea, profundidade de corpo, aprumos (postura das pernas) e umbigo/prega umbilical dentro do padrão da raça. Em touros, o perímetro escrotal é um indicador direto de fertilidade e precocidade sexual — quanto maior, geralmente melhor.',
+      },
+      {
+        heading: 'Impacto da genética no resultado final',
+        body: 'A genética influencia diretamente a velocidade de ganho de peso, a eficiência alimentar e o rendimento de carcaça no frigorífico. Lotes com genética selecionada custam mais na compra, mas costumam pagar essa diferença em menor tempo de terminação.',
+      },
+    ],
+    keyConcepts: [
+      'PO (Puro de Origem) tem maior valor genético e registro completo',
+      'Perímetro escrotal é indicador de fertilidade em touros',
+      'Uniformidade do lote reflete seleção genética consistente',
+      'Genética influencia ganho de peso e rendimento de carcaça',
+    ],
+    quiz: [
+      { q: 'O que significa um animal ser "PO"?', opts: ['Pronto para o abate', 'Puro de Origem, com registro genealógico completo', 'Produzido em confinamento'], answer: 1 },
+      { q: 'O perímetro escrotal em touros é um indicador de quê?', opts: ['Peso final de abate', 'Fertilidade e precocidade sexual', 'Cor da pelagem'], answer: 1 },
+    ],
+  },
+  {
+    id: 10,
+    title: 'Gestão de rebanho com tecnologia',
+    category: 'Gestão',
+    level: 'Intermediário',
+    duration: '20 min',
+    xp: 110,
+    sections: [
+      {
+        heading: 'Rastreabilidade digital do rebanho',
+        body: 'Identificação individual (brincos eletrônicos ou chips) permite rastrear cada animal desde o nascimento até a venda, facilitando a emissão de GTA e dando mais confiança ao comprador — lotes rastreados tendem a ter BTA Score mais alto.',
+      },
+      {
+        heading: 'Apps e sensores no dia a dia do manejo',
+        body: 'Balanças eletrônicas conectadas e apps de manejo reduzem o erro na estimativa de peso, hoje comum quando o peso é "no olho". Sensores de cerca elétrica e monitoramento por imagem de satélite ajudam a otimizar o uso das pastagens.',
+      },
+      {
+        heading: 'Transformando dados em decisão',
+        body: 'Histórico de peso, sanidade e custo por animal, quando registrado, permite decidir com mais precisão a hora certa de vender cada lote — e não só "no feeling". Integrar esses dados com serviços como o BTA Log conecta a gestão do rebanho direto à logística pós-venda.',
+      },
+    ],
+    keyConcepts: [
+      'Rastreabilidade individual facilita GTA e eleva o BTA Score',
+      'Balanças conectadas reduzem erro de estimativa de peso',
+      'Dados históricos melhoram o timing de venda',
+      'Tecnologia de gestão conecta produção e logística (ex: BTA Log)',
+    ],
+    quiz: [
+      { q: 'Qual o principal benefício da identificação individual do rebanho?', opts: ['Deixa o gado mais bonito para foto', 'Rastreabilidade completa, do nascimento à venda', 'Reduz o peso do animal'], answer: 1 },
+      { q: 'O que uma balança eletrônica conectada melhora no manejo?', opts: ['A precisão da estimativa de peso', 'A cor da pelagem dos animais', 'O preço do frete'], answer: 0 },
+    ],
+  },
+]
 
 export const SAVED_SIMULATIONS = [
   { id: 1, name: 'Recria 50 Nelore — Barretos', date: '20/08/2026', margin: 18.4, investment: 125_000, scenario: 'Base' },
@@ -409,10 +699,10 @@ export const SAVED_SIMULATIONS = [
 ]
 
 export const SERVICES = [
-  { id: 1, name: 'BTA Log', icon: '🚛', description: 'Logística e transporte após a negociação.', status: 'available' },
-  { id: 2, name: 'Seguro Rural', icon: '🛡️', description: 'Proteção do rebanho durante o transporte.', status: 'soon' },
-  { id: 3, name: 'Financiamento', icon: '💳', description: 'Crédito rural para compra de gado.', status: 'soon' },
-  { id: 4, name: 'Documentação', icon: '📄', description: 'GTA, laudos e documentação sanitária.', status: 'soon' },
-  { id: 5, name: 'Avaliação', icon: '🔬', description: 'Avaliação profissional de lote in loco.', status: 'soon' },
-  { id: 6, name: 'Veterinário', icon: '🩺', description: 'Consulta veterinária e laudos.', status: 'soon' },
+  { id: 1, name: 'BTA Log', icon: 'truck', description: 'Logística e transporte após a negociação.', status: 'available' },
+  { id: 2, name: 'Seguro Rural', icon: 'shield', description: 'Proteção do rebanho durante o transporte.', status: 'soon' },
+  { id: 3, name: 'Financiamento', icon: 'credit-card', description: 'Crédito rural para compra de gado.', status: 'soon' },
+  { id: 4, name: 'Documentação', icon: 'file-text', description: 'GTA, laudos e documentação sanitária.', status: 'soon' },
+  { id: 5, name: 'Avaliação', icon: 'flask', description: 'Avaliação profissional de lote in loco.', status: 'soon' },
+  { id: 6, name: 'Veterinário', icon: 'stethoscope', description: 'Consulta veterinária e laudos.', status: 'soon' },
 ]

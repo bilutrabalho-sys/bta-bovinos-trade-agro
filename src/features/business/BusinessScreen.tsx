@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { SAVED_SIMULATIONS } from '@/data/mock'
-import type { Tab } from '@/core/navigation'
+import type { Screen, Tab } from '@/core/navigation'
 import { BTALogo, Ic, SectionTitle, BottomNav } from '@/components'
 
-export function BusinessScreen({ onTab }: { onTab: (t: Tab) => void }) {
+export function BusinessScreen({ onTab, onLot, onNavigate }: {
+  onTab: (t: Tab) => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void
+}) {
   const [period, setPeriod] = useState('Mês')
   const kpis = [
     { label: 'Capital investido', value: 'R$ 287.400', color: 'text-bta-primary' },
@@ -29,7 +31,7 @@ export function BusinessScreen({ onTab }: { onTab: (t: Tab) => void }) {
         <div className="px-5 py-5 space-y-5">
           {/* Period filter */}
           <div className="flex gap-1 bg-bta-bg rounded-xl p-1">
-            {['Mês', 'Trimestre', 'Ano'].map(p => <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-2 rounded-lg text-xs font-display font-bold transition-colors ${period === p ? 'bg-bta-surface text-bta-primary shadow-sm' : 'text-bta-muted'}`}>{p}</button>)}
+            {['Mês', 'Trimestre', 'Ano'].map(p => <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-2 rounded-lg text-xs font-display font-bold transition-colors ${period === p ? 'bg-bta-surface text-bta-primary card-shadow' : 'text-bta-muted'}`}>{p}</button>)}
           </div>
 
           <div className="bg-bta-primary rounded-2xl p-5">
@@ -60,20 +62,20 @@ export function BusinessScreen({ onTab }: { onTab: (t: Tab) => void }) {
                 <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="recGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#123B2A" stopOpacity={0.15} /><stop offset="100%" stopColor="#123B2A" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--color-bta-primary)" stopOpacity={0.15} /><stop offset="100%" stopColor="var(--color-bta-primary)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="custGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#C94A45" stopOpacity={0.12} /><stop offset="100%" stopColor="#C94A45" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--color-bta-error)" stopOpacity={0.12} /><stop offset="100%" stopColor="var(--color-bta-error)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E4E8E5" vertical={false} />
-                  <XAxis dataKey="m" tick={{ fontSize: 9, fill: '#68736D', fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#68736D', fontFamily: 'Inter' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E4E8E5', borderRadius: 12, fontSize: 11, fontFamily: 'Inter' }}
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-bta-border)" vertical={false} />
+                  <XAxis dataKey="m" tick={{ fontSize: 9, fill: 'var(--color-bta-muted)', fontFamily: 'Inter' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: 'var(--color-bta-muted)', fontFamily: 'Inter' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip contentStyle={{ background: 'var(--color-bta-surface)', border: '1px solid var(--color-bta-border)', borderRadius: 12, fontSize: 11, fontFamily: 'Inter' }}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     formatter={(v: any, name: any) => [`R$ ${Number(v).toLocaleString('pt-BR')}`, name === 'receita' ? 'Receita' : 'Custo']} />
-                  <Area type="monotone" dataKey="receita" stroke="#123B2A" strokeWidth={2} fill="url(#recGrad)" dot={false} />
-                  <Area type="monotone" dataKey="custo" stroke="#C94A45" strokeWidth={1.5} fill="url(#custGrad)" dot={false} />
+                  <Area type="monotone" dataKey="receita" stroke="var(--color-bta-primary)" strokeWidth={2} fill="url(#recGrad)" dot={false} />
+                  <Area type="monotone" dataKey="custo" stroke="var(--color-bta-error)" strokeWidth={1.5} fill="url(#custGrad)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -81,7 +83,7 @@ export function BusinessScreen({ onTab }: { onTab: (t: Tab) => void }) {
 
           {/* Saved simulations */}
           <div>
-            <SectionTitle>Simulações salvas</SectionTitle>
+            <SectionTitle action="Nova simulação" onAction={() => onNavigate('simulator')}>Simulações salvas</SectionTitle>
             <div className="space-y-2">
               {SAVED_SIMULATIONS.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-bta-surface rounded-xl border border-bta-border px-4 py-3">
@@ -103,18 +105,21 @@ export function BusinessScreen({ onTab }: { onTab: (t: Tab) => void }) {
             <SectionTitle>Operações recentes</SectionTitle>
             <div className="space-y-2">
               {[
-                { type: 'Compra', lot: '120 Nelore', date: '20/08', value: 'R$ 143.280', color: 'text-bta-error' },
-                { type: 'Venda', lot: '80 Brangus', date: '15/08', value: 'R$ 117.504', color: 'text-bta-success' },
-                { type: 'Frete', lot: 'Transportadora JB', date: '20/08', value: 'R$ 4.200', color: 'text-bta-error' },
-                { type: 'Venda', lot: '30 Angus', date: '10/08', value: 'R$ 63.855', color: 'text-bta-success' },
+                { type: 'Compra', lot: '120 Nelore', date: '20/08', value: 'R$ 143.280', color: 'text-bta-error', lotId: 1 },
+                { type: 'Venda', lot: '80 Brangus', date: '15/08', value: 'R$ 117.504', color: 'text-bta-success', lotId: 2 },
+                { type: 'Frete', lot: 'Transportadora JB', date: '20/08', value: 'R$ 4.200', color: 'text-bta-error', lotId: 1 },
+                { type: 'Venda', lot: '30 Angus', date: '10/08', value: 'R$ 63.855', color: 'text-bta-success', lotId: 15 },
               ].map((o, i) => (
-                <div key={i} className="flex items-center justify-between bg-bta-surface rounded-xl border border-bta-border px-4 py-3">
+                <button key={i} onClick={() => onLot(o.lotId)} className="w-full flex items-center justify-between bg-bta-surface rounded-xl border border-bta-border px-4 py-3 text-left transition-transform active:scale-[0.98]">
                   <div className="flex items-center gap-3">
                     <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.type === 'Compra' || o.type === 'Frete' ? 'bg-bta-error/10 text-bta-error' : 'bg-bta-success/10 text-bta-success'}`}>{o.type}</div>
                     <div><p className="font-display font-semibold text-bta-text text-xs">{o.lot}</p><p className="text-bta-muted text-[10px]">{o.date}</p></div>
                   </div>
-                  <span className={`font-display font-bold text-sm ${o.color}`}>{o.value}</span>
-                </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-display font-bold text-sm ${o.color}`}>{o.value}</span>
+                    <Ic.ChevronRight />
+                  </div>
+                </button>
               ))}
             </div>
           </div>

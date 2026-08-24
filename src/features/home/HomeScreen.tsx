@@ -9,10 +9,10 @@ export function HomeScreen({ onNavigate, onTab }: {
 }) {
   const unread = NOTIFICATIONS.filter(n => !n.read).length
   const actions = [
-    { label: 'Comprar gado', icon: '🛒', fn: () => onNavigate('buy') },
-    { label: 'Vender gado', icon: '📋', fn: () => onNavigate('sell') },
-    { label: 'Simular negócio', icon: '🧮', fn: () => onNavigate('simulator') },
-    { label: 'Aprender', icon: '🎓', fn: () => onTab('academy') },
+    { label: 'Comprar gado', icon: <Ic.Cart />, fn: () => onNavigate('buy') },
+    { label: 'Vender gado', icon: <Ic.Clipboard />, fn: () => onNavigate('sell') },
+    { label: 'Simular negócio', icon: <Ic.Calculator />, fn: () => onNavigate('simulator') },
+    { label: 'Aprender', icon: <Ic.Book />, fn: () => onTab('academy') },
   ]
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -46,8 +46,8 @@ export function HomeScreen({ onNavigate, onTab }: {
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-3">
             {actions.map(a => (
-              <Btn key={a.label} sound="tap" onClick={a.fn} className="bg-bta-surface rounded-2xl p-4 border border-bta-border shadow-sm text-left">
-                <div className="w-10 h-10 rounded-xl bg-bta-primary/10 flex items-center justify-center text-xl mb-3">{a.icon}</div>
+              <Btn key={a.label} sound="tap" onClick={a.fn} className="bg-bta-surface rounded-2xl p-4 border border-bta-border card-shadow text-left">
+                <div className="w-10 h-10 rounded-xl bg-bta-primary/10 flex items-center justify-center text-bta-primary mb-3">{a.icon}</div>
                 <p className="font-display font-bold text-bta-text text-sm">{a.label}</p>
               </Btn>
             ))}
@@ -86,12 +86,12 @@ export function HomeScreen({ onNavigate, onTab }: {
           {/* Match + BTA Check shortcuts */}
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => onNavigate('match')} className="bg-bta-primary rounded-2xl p-4 text-left transition-transform active:scale-[0.98]">
-              <p className="text-2xl mb-2">🎯</p>
+              <div className="text-bta-amber mb-2"><Ic.Target /></div>
               <p className="font-display font-bold text-white text-sm">BTA Match</p>
               <p className="text-white/60 text-xs mt-0.5">Nós encontramos o gado.</p>
             </button>
             <button onClick={() => onNavigate('opportunities')} className="bg-bta-surface border border-bta-border rounded-2xl p-4 text-left transition-transform active:scale-[0.98]">
-              <p className="text-2xl mb-2">⚡</p>
+              <div className="text-bta-amber mb-2"><Ic.Bolt /></div>
               <p className="font-display font-bold text-bta-text text-sm">Oportunidades</p>
               <p className="text-bta-muted text-xs mt-0.5">{OPPORTUNITIES.length} detectadas</p>
             </button>
@@ -112,12 +112,12 @@ export function HomeScreen({ onNavigate, onTab }: {
             <SectionTitle action="Ver tudo" onAction={() => onTab('academy')}>Continue aprendendo</SectionTitle>
             <div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-2">
               {COURSES.slice(0, 4).map(c => (
-                <div key={c.id} className="flex-shrink-0 w-52 bg-bta-surface rounded-xl p-4 border border-bta-border shadow-sm">
+                <div key={c.id} className="flex-shrink-0 w-52 bg-bta-surface rounded-xl p-4 border border-bta-border card-shadow">
                   <span className="inline-block px-2 py-0.5 bg-bta-bg text-bta-muted text-[10px] font-semibold rounded-full mb-2">{c.category}</span>
                   <p className="font-display font-semibold text-bta-text text-xs leading-tight mb-2">{c.title}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-bta-muted text-[10px]">{c.duration}</span>
-                    {c.progress > 0 ? <span className="text-bta-success text-[10px] font-bold">{c.progress}% ✓</span> : <span className="text-bta-muted text-[10px]">+{c.xp} XP</span>}
+                    {c.progress > 0 ? <span className="inline-flex items-center gap-1 text-bta-success text-[10px] font-bold">{c.progress}% <Ic.Check /></span> : <span className="text-bta-muted text-[10px]">+{c.xp} XP</span>}
                   </div>
                   {c.progress > 0 && c.progress < 100 && (
                     <div className="mt-2 h-1 bg-bta-bg rounded-full overflow-hidden">
@@ -131,7 +131,7 @@ export function HomeScreen({ onNavigate, onTab }: {
 
           {/* Services teaser */}
           <button onClick={() => onNavigate('services')} className="w-full flex items-center gap-3 bg-bta-bg border border-bta-border rounded-2xl p-5 text-left">
-            <span className="text-2xl">🛠️</span>
+            <span className="text-bta-primary"><Ic.Wrench /></span>
             <div className="flex-1">
               <p className="font-display font-bold text-bta-text text-sm">Central de Serviços</p>
               <p className="text-bta-muted text-xs mt-0.5">Log · Seguro · Financiamento · Documentação</p>

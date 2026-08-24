@@ -14,6 +14,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
     { label: 'Distância', key: 'distance', fmt: (v) => `${v} km`, lower: true },
     { label: 'Frete', key: 'freight', fmt: (v) => `R$ ${Number(v).toLocaleString('pt-BR')}`, lower: true },
     { label: 'Custo total', key: 'priceTotal', fmt: (_, l) => `R$ ${(l.priceTotal + l.freight).toLocaleString('pt-BR')}`, lower: true },
+    { label: 'Custo/@', key: 'costPerArroba', fmt: (_, l) => `R$ ${Math.round((l.priceTotal + l.freight) / (l.quantity * (l.weight / 15)))}/@`, lower: true },
     { label: 'BTA Score', key: 'score' },
     { label: 'Raça', key: 'breed', fmt: (v) => String(v) },
     { label: 'Fazenda', key: 'sellerId', fmt: (_, l) => FARMS.find(f => f.id === l.sellerId)?.name.replace('Fazenda ', '').substring(0, 16) ?? '—' },
@@ -22,6 +23,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
   function getWinner(key: string, lower: boolean) {
     const vals = lots.map(l => {
       if (key === 'priceTotal') return l.priceTotal + l.freight
+      if (key === 'costPerArroba') return (l.priceTotal + l.freight) / (l.quantity * (l.weight / 15))
       return Number((l as unknown as Record<string, unknown>)[key] ?? 0)
     })
     const best = lower ? Math.min(...vals) : Math.max(...vals)
@@ -63,7 +65,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
                   <div key={l.id} className={`flex-1 px-3 py-3 border-r border-bta-border last:border-0 flex items-center justify-center ${isWinner ? 'bg-bta-success/5' : ''}`}>
                     <span className={`text-center text-sm font-display font-semibold ${isWinner ? 'text-bta-success' : 'text-bta-text'}`}>
                       {display}
-                      {isWinner && <span className="text-[10px] ml-0.5">✓</span>}
+                      {isWinner && <span className="inline-flex ml-0.5 align-middle"><Ic.Check /></span>}
                     </span>
                   </div>
                 )
@@ -73,7 +75,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
         })}
 
         <div className="px-5 py-5">
-          <button onClick={() => onNavigate('ai')} className="w-full flex items-center justify-center gap-2 bg-bta-primary text-white font-display font-bold text-sm py-4 rounded-2xl">
+          <button onClick={() => onNavigate('ai')} className="w-full flex items-center justify-center gap-2 bg-bta-primary text-white font-display font-bold text-sm py-4 rounded-xl">
             <Ic.Sparkles /> Analisar diferenças com BTA IA
           </button>
         </div>

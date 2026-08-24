@@ -3,7 +3,7 @@ import { LOTS } from '@/data/mock'
 import type { Screen } from '@/core/navigation'
 import { Header, Ic } from '@/components'
 
-export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen) => void }) {
+export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void }) {
   const [tab, setTab] = useState('Ativos')
   const myLots = LOTS.slice(0, 3).map((l, i) => ({ ...l, proposals: [2, 1, 0][i], views: [148, 63, 12][i], favorites: [24, 8, 2][i], status: ['Ativo', 'Ativo', 'Publicado'][i] }))
   return (
@@ -14,7 +14,7 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
           <h1 className="font-display font-black text-bta-text text-2xl mb-1" style={{ letterSpacing: '-0.02em' }}>Venda seu gado</h1>
           <p className="text-bta-muted text-sm">Gerencie seus anúncios e propostas.</p>
         </div>
-        <button onClick={() => onNavigate('create-listing')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl flex items-center justify-center gap-2">
+        <button onClick={() => onNavigate('create-listing')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl flex items-center justify-center gap-2">
           <Ic.Plus /> Cadastrar lote
         </button>
         <div className="grid grid-cols-3 gap-3">
@@ -26,12 +26,12 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
           ))}
         </div>
         <button onClick={() => onNavigate('seller-analytics')} className="w-full flex items-center gap-3 bg-bta-bg border border-bta-border rounded-xl px-4 py-3 text-left">
-          <span className="text-xl">📊</span>
+          <span className="text-bta-primary"><Ic.Chart /></span>
           <div className="flex-1"><p className="font-display font-semibold text-bta-text text-sm">Analytics do vendedor</p><p className="text-bta-muted text-xs">Ver desempenho detalhado</p></div>
           <Ic.ChevronRight />
         </button>
         <div className="flex gap-1 bg-bta-bg rounded-xl p-1">
-          {['Ativos', 'Propostas', 'Vendidos'].map(t => <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-xs font-display font-bold transition-colors ${tab === t ? 'bg-bta-surface text-bta-primary shadow-sm' : 'text-bta-muted'}`}>{t}</button>)}
+          {['Ativos', 'Propostas', 'Vendidos'].map(t => <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-xs font-display font-bold transition-colors ${tab === t ? 'bg-bta-surface text-bta-primary card-shadow' : 'text-bta-muted'}`}>{t}</button>)}
         </div>
         <div className="space-y-3">
           {myLots.filter(l => tab === 'Ativos' ? true : tab === 'Propostas' ? l.proposals > 0 : false).map(lot => (
@@ -46,11 +46,11 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
                   <span className="font-display font-bold text-bta-amber text-sm">R$ {lot.price.toLocaleString('pt-BR')}{lot.priceUnit}</span>
                 </div>
                 <div className="flex items-center gap-4 mt-1">
-                  <span className="text-bta-muted text-xs">👁 {lot.views}</span>
-                  <span className="text-bta-muted text-xs">❤️ {lot.favorites}</span>
+                  <span className="flex items-center gap-1 text-bta-muted text-xs"><Ic.Eye /> {lot.views}</span>
+                  <span className="flex items-center gap-1 text-bta-muted text-xs"><Ic.Heart /> {lot.favorites}</span>
                   <span className="text-bta-muted text-xs">{lot.breed} · {lot.quantity} cab</span>
                 </div>
-                {lot.proposals > 0 && <button onClick={() => onNavigate('negotiation')} className="mt-2 text-bta-primary text-xs font-display font-bold">Ver proposta{lot.proposals > 1 ? 's' : ''} →</button>}
+                {lot.proposals > 0 && <button onClick={() => onNavigate('negotiation', lot.id)} className="mt-2 text-bta-primary text-xs font-display font-bold">Ver proposta{lot.proposals > 1 ? 's' : ''} →</button>}
               </div>
             </div>
           ))}

@@ -1,7 +1,22 @@
 import { useState } from 'react'
-import { LOTS, FARMS } from '@/data/mock'
+import { LOTS, FARMS, MARKET_DATA, type Lot } from '@/data/mock'
 import type { Screen } from '@/core/navigation'
 import { Ic, VerifiedBadge, BTAScore, Btn } from '@/components'
+
+// Shares a lot via the native share sheet when available, falling back to
+// copying the summary to the clipboard so the action always does something.
+async function shareLot(lot: Lot) {
+  const text = `${lot.title} — ${lot.breed} · ${lot.weight}kg · R$ ${lot.price.toLocaleString('pt-BR')}${lot.priceUnit}`
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: lot.title, text })
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text)
+    }
+  } catch {
+    // user cancelled the share sheet or clipboard is unavailable — no-op
+  }
+}
 
 export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate }: {
   lotId: number; onBack: () => void; onNavigate: (s: Screen) => void; onFarm: (id: number) => void; onSimulate: (lotId: number) => void
@@ -10,6 +25,8 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
   const farm = FARMS.find(f => f.id === lot.sellerId)!
   const [imgIdx, setImgIdx] = useState(0)
   const [saved, setSaved] = useState(false)
+  const marketRef = (MARKET_DATA as Record<string, { current: number }>)[lot.category]
+  const vsMarket = marketRef ? ((lot.price - marketRef.current) / marketRef.current) * 100 : null
   const scoreBreakdown = [
     { label: 'Qualidade dos dados', value: 97 }, { label: 'Fazenda', value: lot.score - 2 },
     { label: 'Lote', value: lot.score }, { label: 'Localização', value: 88 },
@@ -21,7 +38,7 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
         <div className="relative h-72 bg-bta-primary-10">
           <img src={lot.images[imgIdx]} alt={lot.title} className="w-full h-full object-cover" />
           <div className="absolute top-12 left-4">
-            <button onClick={onBack} className="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow text-bta-text"><Ic.Back /></button>
+            <button onClick={onBack} className="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center card-shadow text-bta-text"><Ic.Back /></button>
           </div>
           <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
             {lot.images.map((_, i) => <button key={i} onClick={() => setImgIdx(i)} className={`h-1.5 rounded-full transition-all ${i === imgIdx ? 'w-6 bg-white' : 'w-2 bg-white/50'}`} />)}
@@ -48,6 +65,11 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
                 <p className="text-bta-muted text-xs mb-1">Preço</p>
                 <p className="font-display font-black text-bta-amber text-2xl">R$ {lot.price.toLocaleString('pt-BR')}</p>
                 <p className="text-bta-muted text-xs">{lot.priceUnit}</p>
+                {vsMarket !== null && (
+                  <p className={`flex items-center gap-1 text-xs font-display font-bold mt-1 ${vsMarket <= 0 ? 'text-bta-success' : 'text-bta-error'}`}>
+                    {vsMarket <= 0 ? <Ic.ArrowDown /> : <Ic.ArrowUp />} {Math.abs(vsMarket).toFixed(1)}% vs. média {lot.category.toLowerCase()}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-bta-muted text-xs mb-1">Total estimado</p>
@@ -65,20 +87,20 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
           {/* Contextual actions row */}
           <div className="flex gap-2">
             <button onClick={() => onSimulate(lot.id)} className="flex-1 flex items-center justify-center gap-2 border border-bta-primary text-bta-primary font-display font-semibold text-xs py-3 rounded-xl">
-              🧮 Simular compra
+              <Ic.Calculator /> Simular compra
             </button>
             <button onClick={() => onNavigate('bta-check')} className="flex-1 flex items-center justify-center gap-2 border border-bta-border text-bta-text font-display font-semibold text-xs py-3 rounded-xl">
-              🔍 BTA Check
+              <Ic.Search /> BTA Check
             </button>
             <button onClick={() => onNavigate('ai')} className="flex-1 flex items-center justify-center gap-2 border border-bta-border text-bta-text font-display font-semibold text-xs py-3 rounded-xl">
-              ✨ Analisar com IA
+              <Ic.Sparkles /> Analisar com IA
             </button>
           </div>
 
           <div className="bg-bta-surface rounded-2xl border border-bta-border p-4">
             <p className="font-display font-bold text-bta-text text-sm mb-3">Logística</p>
             <div className="space-y-3">
-              {[{ label: 'Localização', value: lot.location, icon: <Ic.Pin /> }, { label: 'Distância', value: `${lot.distance} km`, icon: <span className="text-xs">📍</span> }, { label: 'Frete estimado', value: `R$ ${lot.freight.toLocaleString('pt-BR')}`, icon: <Ic.Truck /> }, { label: 'Custo total estimado', value: `R$ ${(lot.priceTotal + lot.freight).toLocaleString('pt-BR')}`, icon: <span className="text-xs">💰</span> }].map(i => (
+              {[{ label: 'Localização', value: lot.location, icon: <Ic.Pin /> }, { label: 'Distância', value: `${lot.distance} km`, icon: <Ic.Pin /> }, { label: 'Frete estimado', value: `R$ ${lot.freight.toLocaleString('pt-BR')}`, icon: <Ic.Truck /> }, { label: 'Custo total estimado', value: `R$ ${(lot.priceTotal + lot.freight).toLocaleString('pt-BR')}`, icon: <Ic.Wallet /> }].map(i => (
                 <div key={i.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-bta-muted">{i.icon}<span className="text-xs">{i.label}</span></div>
                   <span className="font-display font-semibold text-bta-text text-sm">{i.value}</span>
@@ -117,7 +139,7 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
                     <span className="font-display font-bold text-xs text-bta-primary">{s.value}</span>
                   </div>
                   <div className="h-1.5 bg-bta-bg rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${s.value}%`, backgroundColor: s.value >= 90 ? '#123B2A' : s.value >= 75 ? '#D6A84F' : '#C94A45' }} />
+                    <div className={`h-full rounded-full ${s.value >= 90 ? 'bg-bta-primary' : s.value >= 75 ? 'bg-bta-amber' : 'bg-bta-error'}`} style={{ width: `${s.value}%` }} />
                   </div>
                 </div>
               ))}
@@ -129,16 +151,18 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
       </div>
 
       <div className="px-5 pb-8 pt-4 bg-bta-surface border-t border-bta-border">
-        <Btn sound="cta" onClick={() => onNavigate('negotiation')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl mb-3">Fazer proposta</Btn>
+        <Btn sound="cta" onClick={() => onNavigate('negotiation')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl mb-3">Fazer proposta</Btn>
         <div className="flex gap-3">
           <Btn
             sound="select"
             onClick={() => setSaved(s => !s)}
             className={`flex-1 py-3 rounded-xl border font-display font-semibold text-sm transition-colors ${saved ? 'border-bta-amber text-bta-amber bg-bta-amber-light' : 'border-bta-border text-bta-text bg-bta-bg'}`}
           >
-            <span className={saved ? 'heartbeat inline-block' : ''}>{saved ? '★ Salvo' : '☆ Salvar'}</span>
+            <span className={`inline-flex items-center gap-1.5 ${saved ? 'heartbeat' : ''}`}><Ic.Star filled={saved} /> {saved ? 'Salvo' : 'Salvar'}</span>
           </Btn>
-          <Btn sound="tap" className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text bg-bta-bg font-display font-semibold text-sm">Compartilhar</Btn>
+          <Btn sound="tap" onClick={() => shareLot(lot)} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text bg-bta-bg font-display font-semibold text-sm flex items-center justify-center gap-1.5">
+            <Ic.Share /> Compartilhar
+          </Btn>
         </div>
       </div>
     </div>

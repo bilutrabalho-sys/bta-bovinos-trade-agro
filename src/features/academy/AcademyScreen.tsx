@@ -3,7 +3,7 @@ import { COURSES } from '@/data/mock'
 import type { Tab } from '@/core/navigation'
 import { BTALogo, Chip, Ic, BottomNav } from '@/components'
 
-export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void; onTab: (t: Tab) => void; onLesson: () => void }) {
+export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void; onTab: (t: Tab) => void; onLesson: (courseId: number) => void }) {
   const [cat, setCat] = useState('Todos')
   const categories = ['Todos', 'Comece aqui', 'Compra', 'Venda', 'Mercado', 'Finanças', 'Genética', 'Gestão']
   const filtered = cat === 'Todos' ? COURSES : COURSES.filter(c => c.category === cat)
@@ -38,7 +38,7 @@ export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void;
           </div>
           <div className="space-y-3">
             {filtered.map(c => (
-              <button key={c.id} onClick={c.id === 1 ? onLesson : undefined} className="w-full bg-bta-surface rounded-2xl border border-bta-border p-4 text-left transition-transform active:scale-[0.98]">
+              <button key={c.id} onClick={() => onLesson(c.id)} className="w-full bg-bta-surface rounded-2xl border border-bta-border p-4 text-left transition-transform active:scale-[0.98]">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">

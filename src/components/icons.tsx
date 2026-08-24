@@ -50,7 +50,7 @@ export const Ic = {
     </svg>
   ),
   Star: ({ filled }: { filled?: boolean }) => (
-    <svg viewBox="0 0 24 24" fill={filled ? '#D6A84F' : 'none'} stroke="#D6A84F" strokeWidth={1.8} className="w-4 h-4">
+    <svg viewBox="0 0 24 24" fill={filled ? 'var(--color-bta-amber)' : 'none'} stroke="var(--color-bta-amber)" strokeWidth={1.8} className="w-4 h-4">
       <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
     </svg>
   ),
@@ -110,7 +110,7 @@ export const Ic = {
     </svg>
   ),
   Heart: ({ filled }: { filled?: boolean }) => (
-    <svg viewBox="0 0 24 24" fill={filled ? '#C94A45' : 'none'} stroke={filled ? '#C94A45' : 'currentColor'} strokeWidth={1.8} className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill={filled ? 'var(--color-bta-error)' : 'none'} stroke={filled ? 'var(--color-bta-error)' : 'currentColor'} strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
     </svg>
   ),
@@ -122,6 +122,149 @@ export const Ic = {
   Crown: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" />
+    </svg>
+  ),
+  Cart: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.75 3.75h1.5l.9 3M5.15 6.75l1.4 7.34a1.5 1.5 0 001.47 1.21h6.62a1.5 1.5 0 001.47-1.19l1.14-5.66a.75.75 0 00-.73-.9H5.15z" />
+      <circle cx="9.5" cy="19.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="19.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Clipboard: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h-1.5a1.5 1.5 0 00-1.5 1.5v11.25a1.5 1.5 0 001.5 1.5h10.5a1.5 1.5 0 001.5-1.5V8.25a1.5 1.5 0 00-1.5-1.5h-1.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75V5.25a.75.75 0 01.75-.75h6a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-6a.75.75 0 01-.75-.75z" />
+      <path strokeLinecap="round" d="M9 12.75h6M9 15.75h4.5" />
+    </svg>
+  ),
+  Calculator: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <rect x="5.25" y="3.75" width="13.5" height="16.5" rx="1.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 7.5h9" />
+      <path strokeLinecap="round" d="M8.25 14.25h.01M12 14.25h.01M15.75 14.25h.01M8.25 17.25h.01M12 17.25h.01M15.75 17.25h.01" />
+    </svg>
+  ),
+  Target: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <circle cx="12" cy="12" r="8.25" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Bolt: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 3L5.25 13.5h5.25l-1.5 7.5 8.25-11.25h-5.25L12.75 3z" />
+    </svg>
+  ),
+  Wrench: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.6a3.75 3.75 0 10-5.1 5.1L4.5 16.8a1.5 1.5 0 002.1 2.1l5.1-5.1a3.75 3.75 0 005.1-5.1l-2.4 2.4-2.1-2.1 2.4-2.4z" />
+    </svg>
+  ),
+  Radar: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 12L12 4.5M12 12a7.5 7.5 0 11-7.5 7.5" />
+      <path strokeLinecap="round" d="M12 3a9 9 0 019 9M12 6.75A5.25 5.25 0 0117.25 12" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Handshake: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 11.25l3.72-2.79a2.25 2.25 0 012.85.14L11.5 11l3.28-2.4a2.25 2.25 0 012.85-.14l3.72 2.79" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 10.5l2.35 2.35a1.35 1.35 0 01-1.85 1.97L9 13.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 9.75L4.5 12l3 3a1.6 1.6 0 002.4-.1M17.25 9.75L19.5 12l-3 3a1.6 1.6 0 01-2.4-.1" />
+    </svg>
+  ),
+  Eye: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.04 12.32a1 1 0 010-.64C3.42 7.51 7.36 4.5 12 4.5c4.64 0 8.58 3.01 9.96 7.18a1 1 0 010 .64C20.58 16.49 16.64 19.5 12 19.5c-4.64 0-8.58-3.01-9.96-7.18z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  TrendingUp: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.31 4.31a11.95 11.95 0 015.81-5.52l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.94" />
+    </svg>
+  ),
+  Rocket: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.5 2 4 5.2 4 8.5 0 2-.7 3.7-1.7 5H9.7c-1-1.3-1.7-3-1.7-5 0-3.3 1.5-6.5 4-8.5z" />
+      <circle cx="12" cy="10" r="1.4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.5c-1.8.3-3 1.8-3 4.5 1.8-.3 3-1.2 3.6-2.5M15 12.5c1.8.3 3 1.8 3 4.5-1.8-.3-3-1.2-3.6-2.5M9.75 16.5L7.5 18.75M14.25 16.5l2.25 2.25" />
+    </svg>
+  ),
+  Trophy: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5h7.5v4.5a3.75 3.75 0 01-7.5 0V4.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6H5.75a1.5 1.5 0 00-1.5 1.5c0 2 1.5 3.5 3.5 3.75M15.75 6h2.5a1.5 1.5 0 011.5 1.5c0 2-1.5 3.5-3.5 3.75" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 13.5v3M9 19.5h6M9.5 19.5c0-1.5.6-2.2 2.5-2.5 1.9.3 2.5 1 2.5 2.5" />
+    </svg>
+  ),
+  Compass: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <circle cx="12" cy="12" r="8.25" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5l-1.8 4.2a.75.75 0 01-.4.4L8.1 15.9a.4.4 0 01-.5-.5l1.8-4.2a.75.75 0 01.4-.4l4.2-1.8a.4.4 0 01.5.5z" />
+    </svg>
+  ),
+  Wallet: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h13.5A1.5 1.5 0 0119.5 9v9a1.5 1.5 0 01-1.5 1.5H4.5A1.5 1.5 0 013 18V6a1.5 1.5 0 011.5-1.5h11.25" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 13.5h2.25a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-2.25a1.5 1.5 0 010-3z" />
+    </svg>
+  ),
+  Gear: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
+      <circle cx="12" cy="12" r="3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25M12 18.75V21M21 12h-2.25M5.25 12H3M18.02 5.98l-1.59 1.59M7.57 16.43l-1.59 1.59M18.02 18.02l-1.59-1.59M7.57 7.57L5.98 5.98" />
+    </svg>
+  ),
+  Play: () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+      <path d="M6.75 5.25v13.5a.75.75 0 001.14.63l10.5-6.75a.75.75 0 000-1.26l-10.5-6.75a.75.75 0 00-1.14.63z" />
+    </svg>
+  ),
+  CreditCard: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path strokeLinecap="round" d="M3 10.5h18" />
+      <path strokeLinecap="round" d="M6.5 14.75h4" />
+    </svg>
+  ),
+  FileText: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75h6l4.5 4.5v10.5a1.5 1.5 0 01-1.5 1.5h-9a1.5 1.5 0 01-1.5-1.5V5.25a1.5 1.5 0 011.5-1.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 3.75V8.25h4.5" />
+      <path strokeLinecap="round" d="M9 13.5h6M9 16.5h6" />
+    </svg>
+  ),
+  Flask: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.75h4.5M10.5 3.75v5.4a2 2 0 01-.4 1.2L5.6 17.1a1.8 1.8 0 001.45 2.9h9.9a1.8 1.8 0 001.45-2.9l-4.5-6.75a2 2 0 01-.4-1.2v-5.4" />
+      <path strokeLinecap="round" d="M7.5 15h9" />
+    </svg>
+  ),
+  Stethoscope: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 3.75v5.25a4.5 4.5 0 009 0V3.75M6 3.75H4.5M15 3.75h1.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 13.5v2.25a5.25 5.25 0 1010.5 0v-1.5" />
+      <circle cx="19.5" cy="12.75" r="1.5" />
+    </svg>
+  ),
+  HelpCircle: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+    </svg>
+  ),
+  AlertCircle: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Share: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 7.5L12 3m0 0l4.5 4.5M12 3v13.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75v3a1.5 1.5 0 001.5 1.5h12a1.5 1.5 0 001.5-1.5v-3" />
     </svg>
   ),
 }

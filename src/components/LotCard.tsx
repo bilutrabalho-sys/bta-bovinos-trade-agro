@@ -4,9 +4,25 @@ import { Btn } from './Button'
 import { VerifiedBadge } from './VerifiedBadge'
 import { BTAScore } from './BTAScore'
 
-export function LotCard({ lot, onPress, showCompare, isComparing, onToggleCompare }: {
+// Shares a lot via the native share sheet when available, falling back to
+// copying the summary to the clipboard so the action always does something.
+async function shareLot(lot: Lot) {
+  const text = `${lot.title} — ${lot.breed} · ${lot.weight}kg · R$ ${lot.price.toLocaleString('pt-BR')}${lot.priceUnit}`
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: lot.title, text })
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text)
+    }
+  } catch {
+    // user cancelled the share sheet or clipboard is unavailable — no-op
+  }
+}
+
+export function LotCard({ lot, onPress, showCompare, isComparing, onToggleCompare, showSave, isSaved, onToggleSave }: {
   lot: Lot; onPress: () => void
   showCompare?: boolean; isComparing?: boolean; onToggleCompare?: () => void
+  showSave?: boolean; isSaved?: boolean; onToggleSave?: () => void
 }) {
   const perUnit = lot.priceUnit === '/@'
     ? `R$ ${lot.price.toLocaleString('pt-BR')}/@`
@@ -46,6 +62,22 @@ export function LotCard({ lot, onPress, showCompare, isComparing, onToggleCompar
             <span className="flex items-center gap-1 text-bta-muted text-xs"><Ic.Truck /> R$ {lot.freight.toLocaleString('pt-BR')}</span>
             <span className="text-bta-muted text-xs ml-auto">{lot.distance} km</span>
           </div>
+          {showSave && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-bta-border">
+              <button
+                onClick={e => { e.stopPropagation(); onToggleSave?.() }}
+                className={`flex items-center gap-1 text-[10px] font-display font-semibold px-3 py-1.5 rounded-full border transition-colors ${isSaved ? 'border-bta-amber text-bta-amber bg-bta-amber-light' : 'border-bta-border text-bta-muted'}`}
+              >
+                <Ic.Star filled={isSaved} /> {isSaved ? 'Salvo' : 'Salvar'}
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); shareLot(lot) }}
+                className="flex items-center gap-1 text-[10px] font-display font-semibold px-3 py-1.5 rounded-full border border-bta-border text-bta-muted"
+              >
+                <Ic.Share /> Compartilhar
+              </button>
+            </div>
+          )}
         </div>
       </Btn>
     </div>

@@ -1,10 +1,22 @@
 import { useState } from 'react'
-import type { Lot } from '@/data/mock'
+import { LOTS, type Lot } from '@/data/mock'
 import type { Screen } from '@/core/navigation'
-import { Header, Btn } from '@/components'
+import { Header, Btn, Ic } from '@/components'
 
-export function SimulatorScreen({ onBack, onNavigate, prefillLot }: {
-  onBack: () => void; onNavigate: (s: Screen) => void; prefillLot?: Lot | null
+// Picks up to 2 other lots of the same category as the simulated lot, so
+// "Comparar cenário" opens the Comparador grounded in the numbers just
+// simulated instead of an unrelated/default lot pair.
+function relatedLotIds(lot: Lot): number[] {
+  const others = LOTS
+    .filter(l => l.id !== lot.id && l.category === lot.category)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map(l => l.id)
+  return [lot.id, ...others]
+}
+
+export function SimulatorScreen({ onBack, onNavigate, onCompare, prefillLot }: {
+  onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void; onCompare: (ids: number[]) => void; prefillLot?: Lot | null
 }) {
   const [qty, setQty] = useState(String(prefillLot?.quantity ?? 50))
   const [buyPrice, setBuyPrice] = useState(String(prefillLot ? (prefillLot.priceUnit === '/@' ? prefillLot.price : Math.round(prefillLot.price / (prefillLot.weight / 15))) : 2400))
@@ -13,7 +25,6 @@ export function SimulatorScreen({ onBack, onNavigate, prefillLot }: {
   const [period, setPeriod] = useState('90')
   const [sellPrice, setSellPrice] = useState('315')
   const [finalWeight, setFinalWeight] = useState(String(prefillLot ? Math.round(prefillLot.weight * 1.1) : 420))
-  const [saved, setSaved] = useState(false)
 
   const qtyN = parseInt(qty) || 0
   const buyPriceN = parseFloat(buyPrice) || 0
@@ -31,10 +42,15 @@ export function SimulatorScreen({ onBack, onNavigate, prefillLot }: {
     return { cost, revenue, margin, breakEven }
   }
 
+  const toneClasses: Record<string, { bg: string; text: string }> = {
+    error: { bg: 'bg-bta-error/15', text: 'text-bta-error' },
+    amber: { bg: 'bg-bta-amber/15', text: 'text-bta-amber' },
+    success: { bg: 'bg-bta-success/15', text: 'text-bta-success' },
+  }
   const scenarios = [
-    { label: 'Pessimista', mult: 0.88, color: '#C94A45' },
-    { label: 'Base', mult: 1.0, color: '#D6A84F' },
-    { label: 'Otimista', mult: 1.12, color: '#2E7D52' },
+    { label: 'Pessimista', mult: 0.88, tone: 'error' },
+    { label: 'Base', mult: 1.0, tone: 'amber' },
+    { label: 'Otimista', mult: 1.12, tone: 'success' },
   ].map(s => ({ ...s, ...calcScenario(s.mult) }))
   const base = scenarios[1]
   const fmt = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`
@@ -59,9 +75,9 @@ export function SimulatorScreen({ onBack, onNavigate, prefillLot }: {
         <div className="space-y-3">
           {scenarios.map(s => (
             <div key={s.label} className="bg-bta-surface rounded-2xl border border-bta-border overflow-hidden">
-              <div className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: s.color + '15' }}>
-                <span className="font-display font-bold text-sm" style={{ color: s.color }}>{s.label}</span>
-                <span className="font-display font-black text-lg" style={{ color: s.margin >= 0 ? s.color : '#C94A45' }}>{s.margin >= 0 ? '+' : ''}{s.margin.toFixed(1)}%</span>
+              <div className={`px-4 py-3 flex items-center justify-between ${toneClasses[s.tone].bg}`}>
+                <span className={`font-display font-bold text-sm ${toneClasses[s.tone].text}`}>{s.label}</span>
+                <span className={`font-display font-black text-lg ${s.margin >= 0 ? toneClasses[s.tone].text : 'text-bta-error'}`}>{s.margin >= 0 ? '+' : ''}{s.margin.toFixed(1)}%</span>
               </div>
               <div className="px-4 py-3 grid grid-cols-2 gap-3">
                 {[{ label: 'Custo total', value: fmt(s.cost) }, { label: 'Receita', value: fmt(s.revenue) }, { label: 'Resultado', value: fmt(s.revenue - s.cost) }, { label: 'Ponto equilíbrio', value: `R$ ${s.breakEven.toFixed(0)}/@` }].map(i => (
@@ -82,13 +98,35 @@ export function SimulatorScreen({ onBack, onNavigate, prefillLot }: {
         </div>
       </div>
       <div className="px-5 pb-8 pt-4 bg-bta-surface border-t border-bta-border space-y-3">
-        <Btn sound="cta" onClick={() => onNavigate('negotiation')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl">Fazer proposta</Btn>
+        <Btn
+          sound="cta"
+          disabled={!prefillLot}
+          title={!prefillLot ? 'Simule a partir de um lote para fazer proposta' : undefined}
+          onClick={() => prefillLot && onNavigate('negotiation', prefillLot.id)}
+          className={`w-full font-display font-bold text-base py-4 rounded-xl ${prefillLot ? 'btn-primary-grad text-white' : 'bg-bta-border text-bta-muted opacity-50 cursor-not-allowed'}`}
+        >
+          Fazer proposta
+        </Btn>
         <div className="flex gap-3">
-          <Btn sound="success" onClick={() => setSaved(true)} className={`flex-1 py-3 rounded-xl border font-display font-semibold text-sm ${saved ? 'border-bta-success text-bta-success' : 'border-bta-border text-bta-text'}`}>
-            {saved ? '✓ Simulação salva' : 'Salvar simulação'}
+          <Btn sound="success" onClick={() => onNavigate('business')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm flex items-center justify-center gap-1.5">
+            <Ic.Check /> Salvar simulação
           </Btn>
-          <Btn sound="tap" onClick={() => onNavigate('ai')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm">
-            ✨ Analisar com IA
+          <Btn
+            sound="tap"
+            disabled={!prefillLot}
+            title={!prefillLot ? 'Simule a partir de um lote para comparar' : undefined}
+            onClick={() => prefillLot && onCompare(relatedLotIds(prefillLot))}
+            className={`flex-1 py-3 rounded-xl border font-display font-semibold text-sm flex items-center justify-center gap-1.5 border-bta-border ${prefillLot ? 'text-bta-text' : 'text-bta-muted opacity-50 cursor-not-allowed'}`}
+          >
+            <Ic.Scale /> Comparar cenário
+          </Btn>
+        </div>
+        <div className="flex gap-3">
+          <Btn sound="tap" onClick={() => onNavigate('academy')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm flex items-center justify-center gap-1.5">
+            <Ic.Book /> Aprender como funciona
+          </Btn>
+          <Btn sound="tap" onClick={() => onNavigate('ai')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm flex items-center justify-center gap-1.5">
+            <Ic.Sparkles /> Analisar com IA
           </Btn>
         </div>
       </div>

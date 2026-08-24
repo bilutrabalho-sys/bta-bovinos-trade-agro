@@ -1,24 +1,33 @@
 import { useState } from 'react'
-import { LESSON } from '@/data/mock'
+import { LESSONS } from '@/data/mock'
 import type { Screen } from '@/core/navigation'
-import { Header } from '@/components'
+import { Header, Ic } from '@/components'
 
-export function LessonScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen) => void }) {
+export function LessonScreen({ courseId, onBack, onNavigate }: { courseId: number; onBack: () => void; onNavigate: (s: Screen) => void }) {
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [completed, setCompleted] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const LESSON = LESSONS.find(l => l.id === courseId) ?? LESSONS[0]
   const correct = LESSON.quiz.filter((q, i) => quizAnswers[i] === q.answer).length
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <Header title={LESSON.category} onBack={onBack} rightAction={<span className="text-bta-muted text-xs">{LESSON.duration}</span>} />
+      <Header title={LESSON.category} onBack={onBack} rightAction={
+        <div className="flex items-center gap-3">
+          <span className="text-bta-muted text-xs">{LESSON.duration}</span>
+          <button onClick={() => setSaved(s => !s)} className={`flex items-center gap-1 text-xs font-display font-semibold ${saved ? 'text-bta-amber' : 'text-bta-muted'}`}>
+            <Ic.Star filled={saved} /> {saved ? 'Salvo' : 'Salvar'}
+          </button>
+        </div>
+      } />
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
         {/* Video placeholder */}
         <div className="rounded-2xl overflow-hidden bg-bta-primary aspect-video flex items-center justify-center relative">
           <div className="absolute inset-0 bg-gradient-to-br from-bta-secondary to-bta-primary opacity-90" />
           <div className="relative flex flex-col items-center gap-3">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur">
-              <span className="text-white text-3xl ml-1">▶</span>
+              <span className="text-white ml-1"><Ic.Play /></span>
             </div>
             <p className="text-white/80 text-sm font-display font-semibold">{LESSON.title}</p>
           </div>
@@ -86,29 +95,29 @@ export function LessonScreen({ onBack, onNavigate }: { onBack: () => void; onNav
         </div>
 
         {!quizSubmitted ? (
-          <button onClick={() => setQuizSubmitted(true)} disabled={Object.keys(quizAnswers).length < LESSON.quiz.length} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl disabled:opacity-40">
+          <button onClick={() => setQuizSubmitted(true)} disabled={Object.keys(quizAnswers).length < LESSON.quiz.length} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl disabled:opacity-40">
             Verificar respostas
           </button>
         ) : !completed ? (
           <div className="space-y-3">
             <div className={`rounded-2xl p-4 text-center ${correct === LESSON.quiz.length ? 'bg-bta-success/10 border border-bta-success' : 'bg-bta-amber/10 border border-bta-amber'}`}>
-              <p className="font-display font-bold text-bta-text text-base">{correct === LESSON.quiz.length ? '🎉 Perfeito!' : `${correct}/${LESSON.quiz.length} corretas`}</p>
+              <p className="font-display font-bold text-bta-text text-base">{correct === LESSON.quiz.length ? 'Perfeito!' : `${correct}/${LESSON.quiz.length} corretas`}</p>
               <p className="text-bta-muted text-sm mt-1">{correct === LESSON.quiz.length ? `+${LESSON.xp} XP conquistados!` : 'Revise o conteúdo e tente novamente.'}</p>
             </div>
-            <button onClick={() => setCompleted(true)} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl">
+            <button onClick={() => setCompleted(true)} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl">
               Concluir aula
             </button>
-            <button onClick={() => onNavigate('ai')} className="w-full border border-bta-border text-bta-text font-display font-semibold text-sm py-3 rounded-2xl">
-              ✨ Perguntar à BTA IA
+            <button onClick={() => onNavigate('ai')} className="w-full border border-bta-border text-bta-text font-display font-semibold text-sm py-3 rounded-2xl flex items-center justify-center gap-1.5">
+              <Ic.Sparkles /> Perguntar à BTA IA
             </button>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <div className="w-16 h-16 bg-bta-success/10 rounded-full flex items-center justify-center text-3xl">🏆</div>
+            <div className="w-16 h-16 bg-bta-success/10 rounded-full flex items-center justify-center text-bta-success scale-[1.4]"><Ic.Trophy /></div>
             <p className="font-display font-black text-bta-text text-xl">Aula concluída!</p>
             <p className="text-bta-muted text-sm">+{LESSON.xp} XP adicionados ao seu perfil.</p>
-            <button onClick={onBack} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-2xl mt-2">
-              Próxima aula →
+            <button onClick={() => onNavigate('academy')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl mt-2">
+              Ver mais aulas →
             </button>
           </div>
         )}

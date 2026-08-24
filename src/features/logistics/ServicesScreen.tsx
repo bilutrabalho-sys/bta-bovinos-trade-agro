@@ -1,6 +1,15 @@
 import { SERVICES } from '@/data/mock'
 import type { Screen } from '@/core/navigation'
-import { Header } from '@/components'
+import { Header, Ic } from '@/components'
+
+const SERVICE_ICONS: Record<string, React.ReactNode> = {
+  truck: <Ic.Truck />,
+  shield: <Ic.Shield />,
+  'credit-card': <Ic.CreditCard />,
+  'file-text': <Ic.FileText />,
+  flask: <Ic.Flask />,
+  stethoscope: <Ic.Stethoscope />,
+}
 
 export function ServicesScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen) => void }) {
   return (
@@ -18,7 +27,7 @@ export function ServicesScreen({ onBack, onNavigate }: { onBack: () => void; onN
               onClick={s.id === 1 ? () => onNavigate('bta-log') : undefined}
               className={`bg-bta-surface rounded-2xl border p-4 text-left transition-transform active:scale-[0.98] ${s.status === 'available' ? 'border-bta-primary/30' : 'border-bta-border opacity-75'}`}
             >
-              <span className="text-3xl">{s.icon}</span>
+              <div className="w-10 h-10 rounded-xl bg-bta-primary/10 flex items-center justify-center text-bta-primary">{SERVICE_ICONS[s.icon]}</div>
               <p className="font-display font-bold text-bta-text text-sm mt-3">{s.name}</p>
               <p className="text-bta-muted text-[10px] mt-0.5 leading-snug">{s.description}</p>
               <div className="mt-3">
@@ -30,7 +39,7 @@ export function ServicesScreen({ onBack, onNavigate }: { onBack: () => void; onN
           ))}
         </div>
         <div className="bg-bta-primary/5 border border-bta-primary/20 rounded-2xl p-4">
-          <p className="font-display font-bold text-bta-primary text-sm mb-1">🚀 Expansão planejada</p>
+          <p className="font-display font-bold text-bta-primary text-sm mb-1 flex items-center gap-2"><Ic.Rocket /> Expansão planejada</p>
           <p className="text-bta-muted text-xs leading-relaxed">Novos serviços serão integrados ao longo de 2026. Ative notificações para ser avisado quando estiverem disponíveis.</p>
         </div>
       </div>

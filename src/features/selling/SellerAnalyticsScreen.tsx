@@ -1,4 +1,4 @@
-import { Header, SectionTitle, BTAScore } from '@/components'
+import { Header, SectionTitle, BTAScore, Ic } from '@/components'
 
 export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
   const funnel = [
@@ -17,7 +17,7 @@ export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
           <p className="text-bta-muted text-sm">Últimos 30 dias</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {[{ label: 'Visualizações', value: '211', icon: '👁', color: 'text-bta-primary' }, { label: 'Favoritos', value: '34', icon: '❤️', color: 'text-bta-error' }, { label: 'Propostas', value: '3', icon: '🤝', color: 'text-bta-success' }, { label: 'Conversão', value: '1,4%', icon: '📈', color: 'text-bta-amber' }].map(k => (
+          {[{ label: 'Visualizações', value: '211', icon: <Ic.Eye />, color: 'text-bta-primary' }, { label: 'Favoritos', value: '34', icon: <Ic.Heart />, color: 'text-bta-error' }, { label: 'Propostas', value: '3', icon: <Ic.Handshake />, color: 'text-bta-success' }, { label: 'Conversão', value: '1,4%', icon: <Ic.TrendingUp />, color: 'text-bta-amber' }].map(k => (
             <div key={k.label} className="bg-bta-surface rounded-xl border border-bta-border p-4">
               <div className="flex items-center gap-2 mb-1"><span>{k.icon}</span><p className="text-bta-muted text-[10px]">{k.label}</p></div>
               <p className={`font-display font-black text-2xl ${k.color}`}>{k.value}</p>
@@ -42,9 +42,9 @@ export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
               <div key={l.title} className="bg-bta-surface rounded-xl border border-bta-border p-4">
                 <div className="flex items-center justify-between mb-2"><span className="font-display font-bold text-bta-text text-sm">{l.title}</span><BTAScore score={l.score} size="sm" /></div>
                 <div className="flex items-center gap-4">
-                  <span className="text-bta-muted text-xs">👁 {l.views}</span>
-                  <span className="text-bta-muted text-xs">❤️ {l.favs}</span>
-                  <span className={`text-xs font-semibold ${l.proposals > 0 ? 'text-bta-success' : 'text-bta-muted'}`}>🤝 {l.proposals} proposta{l.proposals !== 1 ? 's' : ''}</span>
+                  <span className="flex items-center gap-1 text-bta-muted text-xs"><Ic.Eye /> {l.views}</span>
+                  <span className="flex items-center gap-1 text-bta-muted text-xs"><Ic.Heart /> {l.favs}</span>
+                  <span className={`flex items-center gap-1 text-xs font-semibold ${l.proposals > 0 ? 'text-bta-success' : 'text-bta-muted'}`}><Ic.Handshake /> {l.proposals} proposta{l.proposals !== 1 ? 's' : ''}</span>
                 </div>
               </div>
             ))}

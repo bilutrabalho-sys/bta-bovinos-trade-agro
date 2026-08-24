@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LOTS } from './data/mock'
-import type { Screen, Tab } from './core/navigation'
+import type { BuyFilters, Screen, Tab } from './core/navigation'
 import { SplashScreen } from './features/onboarding/SplashScreen'
 import { TermsScreen } from './features/onboarding/TermsScreen'
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen'
@@ -42,6 +42,8 @@ export default function App() {
   const [selectedFarmId, setSelectedFarmId] = useState<number>(1)
   const [compareLotIds, setCompareLotIds] = useState<number[]>([1, 15])
   const [preFillLotId, setPreFillLotId] = useState<number | null>(null)
+  const [buyFilters, setBuyFilters] = useState<BuyFilters | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState<number>(1)
 
   const navigate = (s: Screen, lotId?: number, farmId?: number) => {
     setHistory(prev => [...prev, screen])
@@ -61,6 +63,8 @@ export default function App() {
   const navigateFarm = (id: number) => { setSelectedFarmId(id); navigate('farm-profile') }
   const navigateCompare = (ids: number[]) => { setCompareLotIds(ids); navigate('compare') }
   const navigateSimulatorWithLot = (lotId: number) => { setPreFillLotId(lotId); navigate('simulator') }
+  const navigateResults = (filters: BuyFilters) => { setBuyFilters(filters); navigate('results') }
+  const navigateLesson = (courseId: number) => { setSelectedCourseId(courseId); navigate('lesson') }
 
   const prefillLot = preFillLotId ? LOTS.find(l => l.id === preFillLotId) ?? null : null
 
@@ -70,31 +74,31 @@ export default function App() {
       case 'onboarding': return <OnboardingScreen onDone={() => setScreen('terms')} />
       case 'terms': return <TermsScreen onAccept={() => setScreen('home')} />
       case 'home': return <HomeScreen onNavigate={navigate} onTab={goTab} />
-      case 'market': return <MarketScreen onBack={back} onTab={goTab} onNavigate={navigate} />
-      case 'buy': return <BuyScreen onBack={back} onNavigate={navigate} />
-      case 'results': return <ResultsScreen onBack={back} onLot={navigateLot} onCompare={navigateCompare} />
+      case 'market': return <MarketScreen onBack={back} onTab={goTab} onNavigate={navigate} onCompare={navigateCompare} />
+      case 'buy': return <BuyScreen onBack={back} onNavigate={navigate} onSearch={navigateResults} />
+      case 'results': return <ResultsScreen onBack={back} onLot={navigateLot} onCompare={navigateCompare} filters={buyFilters} />
       case 'lot-detail': return <LotDetailScreen lotId={selectedLotId} onBack={back} onNavigate={navigate} onFarm={navigateFarm} onSimulate={navigateSimulatorWithLot} />
-      case 'match': return <BTAMatchScreen onBack={back} onLot={navigateLot} />
-      case 'radar': return <RadarScreen onBack={back} />
+      case 'match': return <BTAMatchScreen onBack={back} onLot={navigateLot} onNavigate={navigate} />
+      case 'radar': return <RadarScreen onBack={back} onLot={navigateLot} />
       case 'sell': return <SellScreen onBack={back} onNavigate={navigate} />
       case 'create-listing': return <CreateListingScreen onBack={back} />
-      case 'simulator': return <SimulatorScreen onBack={back} onNavigate={navigate} prefillLot={prefillLot} />
+      case 'simulator': return <SimulatorScreen onBack={back} onNavigate={navigate} onCompare={navigateCompare} prefillLot={prefillLot} />
       case 'ai': return <AIScreen onBack={back} />
-      case 'academy': return <AcademyScreen onBack={back} onTab={goTab} onLesson={() => navigate('lesson')} />
-      case 'lesson': return <LessonScreen onBack={back} onNavigate={navigate} />
+      case 'academy': return <AcademyScreen onBack={back} onTab={goTab} onLesson={navigateLesson} />
+      case 'lesson': return <LessonScreen courseId={selectedCourseId} onBack={back} onNavigate={navigate} />
       case 'bta-path': return <BTAPathScreen onBack={back} onNavigate={navigate} />
-      case 'business': return <BusinessScreen onTab={goTab} />
+      case 'business': return <BusinessScreen onTab={goTab} onLot={navigateLot} onNavigate={navigate} />
       case 'profile': return <ProfileScreen onTab={goTab} onNavigate={navigate} />
       case 'notifications': return <NotificationsScreen onBack={back} />
-      case 'negotiation': return <NegotiationScreen onBack={back} onNavigate={navigate} />
-      case 'bta-check': return <BTACheckScreen onBack={back} onNavigate={navigate} />
-      case 'farm-profile': return <FarmProfileScreen farmId={selectedFarmId} onBack={back} onLot={navigateLot} />
-      case 'opportunities': return <OpportunitiesScreen onBack={back} onLot={navigateLot} />
+      case 'negotiation': return <NegotiationScreen lotId={selectedLotId} onBack={back} onNavigate={navigate} />
+      case 'bta-check': return <BTACheckScreen lotId={selectedLotId} onBack={back} onNavigate={navigate} />
+      case 'farm-profile': return <FarmProfileScreen farmId={selectedFarmId} onBack={back} onLot={navigateLot} onNavigate={navigate} />
+      case 'opportunities': return <OpportunitiesScreen onBack={back} onLot={navigateLot} onCompare={navigateCompare} />
       case 'compare': return <CompareScreen lotIds={compareLotIds} onBack={back} onLot={navigateLot} onNavigate={navigate} />
       case 'deal-closed': return <DealClosedScreen lotId={selectedLotId} onBack={back} onNavigate={navigate} />
-      case 'bta-log': return <BTALogScreen onBack={back} />
+      case 'bta-log': return <BTALogScreen lotId={selectedLotId} onBack={back} />
       case 'services': return <ServicesScreen onBack={back} onNavigate={navigate} />
-      case 'favorites': return <FavoritesScreen onBack={back} onLot={navigateLot} />
+      case 'favorites': return <FavoritesScreen onBack={back} onLot={navigateLot} onFarm={navigateFarm} />
       case 'bta-pro': return <BTAProScreen onBack={back} />
       case 'seller-analytics': return <SellerAnalyticsScreen onBack={back} />
       default: return <HomeScreen onNavigate={navigate} onTab={goTab} />
