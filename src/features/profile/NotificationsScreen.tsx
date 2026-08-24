@@ -1,0 +1,28 @@
+import { useState } from 'react'
+import { NOTIFICATIONS } from '@/data/mock'
+import { Header } from '@/components'
+
+export function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  const [notifs, setNotifs] = useState(NOTIFICATIONS)
+  const iconMap: Record<string, string> = { match: '🎯', proposal: '🤝', price: '📈', radar: '📡', academy: '🎓' }
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <Header title="Notificações" onBack={onBack} rightAction={<button onClick={() => setNotifs(prev => prev.map(n => ({ ...n, read: true })))} className="text-bta-secondary text-xs font-display font-semibold">Marcar todas</button>} />
+      <div className="flex-1 overflow-y-auto">
+        {notifs.map(n => (
+          <button key={n.id} onClick={() => setNotifs(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))} className={`w-full flex items-start gap-3 px-5 py-4 text-left border-b border-bta-border transition-colors ${n.read ? 'bg-bta-surface' : 'bg-bta-primary/5'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${n.read ? 'bg-bta-bg' : 'bg-bta-primary/10'}`}>{iconMap[n.type]}</div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <p className={`font-display font-semibold text-sm ${n.read ? 'text-bta-muted' : 'text-bta-text'}`}>{n.title}</p>
+                <span className="text-bta-muted text-[10px] ml-2 flex-shrink-0">{n.time}</span>
+              </div>
+              <p className="text-bta-muted text-xs mt-0.5 leading-relaxed">{n.body}</p>
+            </div>
+            {!n.read && <div className="w-2 h-2 bg-bta-primary rounded-full mt-1 flex-shrink-0" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

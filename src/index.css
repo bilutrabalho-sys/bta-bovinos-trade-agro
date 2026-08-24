@@ -1,0 +1,260 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Manrope', system-ui, sans-serif;
+
+  --color-bta-primary: #123B2A;
+  --color-bta-secondary: #1E5A40;
+  --color-bta-amber: #D6A84F;
+  --color-bta-amber-light: #F5E6C8;
+  --color-bta-bg: #F6F7F3;
+  --color-bta-surface: #FFFFFF;
+  --color-bta-text: #18211D;
+  --color-bta-muted: #68736D;
+  --color-bta-success: #2E7D52;
+  --color-bta-error: #C94A45;
+  --color-bta-border: #E4E8E5;
+  --color-bta-primary-10: #123B2A1A;
+  --color-bta-primary-20: #123B2A33;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #DDE0DA;
+  color: #18211D;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* ── BTA 3-D brand mark ──────────────────────────────────────── */
+/*   Use .bta-mark-amber (dark bg) or .bta-mark-green (light bg)  */
+
+.bta-mark-amber {
+  color: #FDE98C;
+  text-shadow:
+    0 1px 0  #F5D55A,
+    0 2px 0  #D6A84F,
+    0 3px 0  #C09030,
+    0 4px 0  #A87420,
+    0 5px 0  #8C5E10,
+    0 6px 0  #6E4600,
+    0 8px 20px rgba(0, 0, 0, 0.70),
+    0 14px 36px rgba(0, 0, 0, 0.30);
+  -webkit-text-stroke: 0.4px rgba(0,0,0,0.12);
+}
+
+.bta-mark-amber-sm {
+  color: #FDE98C;
+  text-shadow:
+    0 1px 0  #F0C654,
+    0 2px 0  #D6A84F,
+    0 3px 0  #B88A30,
+    0 4px 0  #8C5E10,
+    0 5px 12px rgba(0, 0, 0, 0.55),
+    0 8px 22px rgba(0, 0, 0, 0.25);
+}
+
+.bta-mark-green {
+  color: #1E6040;
+  text-shadow:
+    0 1px 0  #123B2A,
+    0 2px 0  #0D2B1E,
+    0 3px 0  #091C14,
+    0 4px 10px rgba(0, 0, 0, 0.25),
+    0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Card elevation ───────────────────────────────────────────── */
+.card-shadow {
+  box-shadow:
+    0 1px 3px  rgba(18, 59, 42, 0.07),
+    0 4px 16px rgba(18, 59, 42, 0.05);
+}
+
+.card-shadow-lg {
+  box-shadow:
+    0 4px 16px rgba(18, 59, 42, 0.11),
+    0 10px 40px rgba(18, 59, 42, 0.07);
+}
+
+/* ── Screen header gradient ───────────────────────────────────── */
+.header-dark {
+  background: linear-gradient(160deg, #091C14 0%, #0D2B1E 40%, #123B2A 100%);
+}
+
+/* ── Primary button gradient ──────────────────────────────────── */
+.btn-primary-grad {
+  background: linear-gradient(135deg, #1E5A40 0%, #123B2A 100%);
+  box-shadow: 0 4px 16px rgba(18,59,42,0.35), 0 2px 6px rgba(18,59,42,0.25);
+}
+
+.btn-primary-grad:active {
+  box-shadow: 0 2px 8px rgba(18,59,42,0.30);
+}
+
+/* ── Splash ──────────────────────────────────────────────────── */
+@keyframes splash-brand {
+  0%   { opacity: 0; transform: scale(0.78) translateY(10px); }
+  55%  { opacity: 1; transform: scale(1.04) translateY(-2px); }
+  75%  { transform: scale(0.98) translateY(0); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes splash-sub {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splash-ring-1 {
+  0%   { transform: scale(0.3); opacity: 0; }
+  100% { transform: scale(1); opacity: 0.18; }
+}
+@keyframes splash-ring-2 {
+  0%   { transform: scale(0.3); opacity: 0; }
+  100% { transform: scale(1); opacity: 0.13; }
+}
+@keyframes splash-ring-3 {
+  0%   { transform: scale(0.3); opacity: 0; }
+  100% { transform: scale(1); opacity: 0.08; }
+}
+
+@keyframes shimmer-sweep {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.brand-shimmer {
+  background: linear-gradient(
+    105deg,
+    #D6A84F 0%,
+    #F5E6C8 40%,
+    #D6A84F 55%,
+    #B8872E 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 2.4s linear forwards;
+}
+
+/* ── Ripple ──────────────────────────────────────────────────── */
+@keyframes ripple-expand {
+  from { transform: scale(0); opacity: 0.5; }
+  to   { transform: scale(5); opacity: 0; }
+}
+
+.ripple-dot {
+  position: absolute;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.30);
+  margin-left: -28px;
+  margin-top: -28px;
+  pointer-events: none;
+  animation: ripple-expand 0.52s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.ripple-dot-dark {
+  background: rgba(18, 59, 42, 0.12);
+}
+
+/* ── Spring bounce ───────────────────────────────────────────── */
+@keyframes spring-press {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.93); }
+  65%  { transform: scale(1.04); }
+  80%  { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+.spring-press {
+  animation: spring-press 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Tab icon bounce ─────────────────────────────────────────── */
+@keyframes tab-pop {
+  0%   { transform: translateY(0) scale(1); }
+  35%  { transform: translateY(-5px) scale(1.18); }
+  65%  { transform: translateY(1px) scale(0.96); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.tab-pop {
+  animation: tab-pop 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Slide in from right ─────────────────────────────────────── */
+@keyframes slide-in-right {
+  from { transform: translateX(18px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.slide-in {
+  animation: slide-in-right 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Fade up ─────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.fade-up {
+  animation: fade-up 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Heartbeat (for saved/favorited) ────────────────────────── */
+@keyframes heartbeat {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.35); }
+  50%  { transform: scale(0.92); }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.heartbeat {
+  animation: heartbeat 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Score ring fill ─────────────────────────────────────────── */
+@keyframes ring-fill {
+  from { stroke-dashoffset: var(--dash-circ); }
+  to   { stroke-dashoffset: var(--dash-offset); }
+}
+
+.ring-animated {
+  animation: ring-fill 0.9s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
