@@ -1,5 +1,5 @@
-import { Ic } from './icons'
-import { Btn } from './Button'
+import { Ic } from '@/components/foundation/icons'
+import { Btn } from '@/components/foundation/Button'
 
 export function PriceCard({ name, current, change, unit, onPress }: {
   name: string; current: number; change: number; unit: string; onPress?: () => void

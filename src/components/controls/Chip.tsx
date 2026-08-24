@@ -1,4 +1,4 @@
-import { Btn } from './Button'
+import { Btn } from '@/components/foundation/Button'
 
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
   return (

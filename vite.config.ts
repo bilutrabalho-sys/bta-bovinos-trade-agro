@@ -13,5 +13,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // Libera hosts de túnel (Cloudflare / ngrok / localtunnel) para testar em outros dispositivos
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.ngrok.io', '.loca.lt'],
   },
 })

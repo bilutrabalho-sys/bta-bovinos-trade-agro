@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { sounds } from '@/utils/sound'
 import type { Tab } from '@/core/navigation'
-import { Ic } from './icons'
+import { Ic } from '@/components/foundation/icons'
 
 export function BottomNav({ active, onTab }: { active: Tab; onTab: (t: Tab) => void }) {
   const [animKey, setAnimKey] = useState('')

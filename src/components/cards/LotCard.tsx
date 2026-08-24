@@ -1,8 +1,8 @@
 import type { Lot } from '@/data/mock'
-import { Ic } from './icons'
-import { Btn } from './Button'
-import { VerifiedBadge } from './VerifiedBadge'
-import { BTAScore } from './BTAScore'
+import { Ic } from '@/components/foundation/icons'
+import { Btn } from '@/components/foundation/Button'
+import { VerifiedBadge } from '@/components/brand/VerifiedBadge'
+import { BTAScore } from '@/components/brand/BTAScore'
 
 // Shares a lot via the native share sheet when available, falling back to
 // copying the summary to the clipboard so the action always does something.

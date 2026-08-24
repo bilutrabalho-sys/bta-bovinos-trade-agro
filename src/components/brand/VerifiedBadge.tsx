@@ -1,4 +1,4 @@
-import { Ic } from './icons'
+import { Ic } from '@/components/foundation/icons'
 
 export function VerifiedBadge({ small = false }: { small?: boolean }) {
   return (

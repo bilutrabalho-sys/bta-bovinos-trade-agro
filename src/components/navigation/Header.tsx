@@ -1,5 +1,5 @@
-import { Ic } from './icons'
-import { Btn } from './Button'
+import { Ic } from '@/components/foundation/icons'
+import { Btn } from '@/components/foundation/Button'
 
 export function Header({ title, onBack, rightAction, dark = false }: {
   title?: string; onBack?: () => void; rightAction?: React.ReactNode; dark?: boolean
