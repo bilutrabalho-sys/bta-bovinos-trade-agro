@@ -59,7 +59,9 @@ APP BTA/
 │   │   └── navigation.ts             Tipos Screen/Tab e BuyFilters (payload entre telas)
 │   │
 │   ├── data/                    🗃️ Dados
-│   │   └── mock.ts                   Lotes, fazendas, mercado, cursos, aulas, notificações...
+│   │   ├── mock.ts                   Dados fictícios (fallback / modo mock)
+│   │   ├── api.ts                    fetch por coleção (modo api)
+│   │   └── DataProvider.tsx          switch mock|api + hook useData()
 │   │
 │   ├── utils/                   🔧 Utilitários
 │   │   └── sound.ts                  Efeitos sonoros (Web Audio)
@@ -90,6 +92,20 @@ APP BTA/
 │       ├── business/                BTA Negócios
 │       └── profile/                 Perfil, BTA PRO, Favoritos, Notificações
 │
+├── db/                          🐘 Banco de dados PostgreSQL
+│   ├── schema/                      DDL canônico + hardening (índices, RLS, roles)
+│   ├── migrations/                  001..014 versionadas e reversíveis (up/down)
+│   ├── seed/                        dados fictícios
+│   └── tests/                       testes de integridade
+│
+├── server/                      🔌 Backend (Node + Express + TS + pg)
+│   └── src/
+│       ├── index.ts                 Express app
+│       ├── db.ts                    pool pg (DATABASE_URL)
+│       ├── migrate.ts               runner de migrations (npm run db:setup)
+│       ├── mappers.ts               row (snake_case) → shape do mock (camelCase)
+│       └── routes/                  endpoints por área
+│
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -104,6 +120,37 @@ APP BTA/
 - Cores/spacing/radius **sempre via tokens** de `index.css` (`bta-primary`, `bta-amber`, etc.) — nada de hex cru.
 - Ícones **sempre** do set SVG `Ic` (`components/foundation/icons`) — nada de emoji como ícone de UI.
 - Navegação é por estado (`useState` em `App.tsx`), passando ids/filtros entre telas — **não** usar react-router.
+
+---
+
+## Banco de dados e modo real (mock ⇄ api)
+
+Por padrão o app roda com **dados fictícios (mock)** — não precisa de backend.
+Para usar **dados reais** de um PostgreSQL:
+
+```bash
+# 1) Postgres local rodando + banco criado:
+createdb bta
+
+# 2) Backend:
+cd server
+copy .env.example .env      # ajuste DATABASE_URL se preciso
+npm install
+npm run db:setup            # migrations + hardening + seed  (--reset zera antes)
+npm run dev                 # API em http://localhost:3001/api
+
+# 3) App em modo api: crie um .env na raiz com
+#      VITE_DATA_SOURCE=api
+#      VITE_API_URL=http://localhost:3001
+npm run dev                 # na raiz
+```
+
+A conexão é por `DATABASE_URL` — troque a string para apontar para um Postgres na
+nuvem quando publicar. Detalhes e pendências (auth/RLS) em `docs/ESTADO-DO-PROJETO.md`.
+
+> Observação: em modo `api`, o valor total dos lotes `/@` vem **correto** do banco
+> (fórmula por arroba); o `mock.ts` ainda tem o valor antigo/errado — os números
+> divergem de propósito, e o banco é a fonte correta.
 
 ---
 
