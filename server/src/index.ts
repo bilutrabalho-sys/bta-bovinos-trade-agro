@@ -15,12 +15,29 @@ import { pgErrorStatus } from './helpers';
 
 const app = express();
 
-// CORS liberado para o dev server do Vite (localhost:5173).
-app.use(
-  cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-  }),
-);
+// Render (e outros PaaS) ficam atrás de um proxy reverso. Confiar no 1º hop faz
+// req.ip / protocolo / futuros rate-limits e cookies "secure" enxergarem o
+// cliente real em vez do proxy.
+app.set('trust proxy', 1);
+
+// ---------------------------------------------------------------------------
+//  CORS por ambiente (via env ALLOWED_ORIGINS).
+//  - ALLOWED_ORIGINS definido (lista separada por vírgula) => restringe a
+//    EXATAMENTE essas origens. É assim que se protege a API em produção. Ex.:
+//      ALLOWED_ORIGINS=https://app.bta.com.br,https://www.bta.com.br
+//  - ALLOWED_ORIGINS ausente (dev) => libera geral (reflete a origem da
+//    requisição). Assim o Vite em localhost:5173, previews e etc. nunca quebram.
+//  - Curinga explícito: ALLOWED_ORIGINS=* também libera geral.
+// ---------------------------------------------------------------------------
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const corsOrigin: boolean | string[] =
+  allowedOrigins.length === 0 || allowedOrigins.includes('*') ? true : allowedOrigins;
+
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 // Sanidade / health-check.
@@ -62,7 +79,9 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
+// Render injeta a porta via env; em dev cai no 3001.
 const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
-  console.log(`[bta-server] escutando em http://localhost:${port}/api`);
+  const corsMode = corsOrigin === true ? 'liberado (dev)' : `restrito a ${allowedOrigins.join(', ')}`;
+  console.log(`[bta-server] escutando na porta ${port} — rotas sob /api — CORS: ${corsMode}`);
 });

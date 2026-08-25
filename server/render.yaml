@@ -1,0 +1,50 @@
+# ============================================================================
+#  render.yaml — Blueprint (Infra as Code) do Render para o backend do BTA.
+# ----------------------------------------------------------------------------
+#  O QUE É: declara o serviço web Node que roda a API (server/). Em vez de
+#  clicar no painel, o Render lê este arquivo e cria tudo igual, sempre.
+#
+#  ATENÇÃO (importante): o Render só DETECTA automaticamente um render.yaml que
+#  esteja na RAIZ do repositório. Como este arquivo mora em server/, você tem
+#  duas opções:
+#
+#    (A) CAMINHO SIMPLES — não precisa deste arquivo:
+#        No painel do Render: New > Web Service > aponte pro repo do GitHub e
+#        preencha à mão: Root Directory = server, Build = npm ci,
+#        Start = npm start, Health Check Path = /api/health, Plan = Free.
+#        (Passo a passo detalhado no server/README.md.)
+#
+#    (B) CAMINHO BLUEPRINT (Infra as Code) — usando este arquivo:
+#        Copie este render.yaml para a RAIZ do repositório e então use
+#        New > Blueprint no Render. O rootDir: server abaixo continua fazendo
+#        a API rodar a partir da pasta server/.
+#
+#  Na criação, escolha uma região US East (Virginia/Ohio) e crie o banco no
+#  Neon NA MESMA região — menos latência entre API e banco.
+# ============================================================================
+services:
+  - type: web
+    name: bta-server
+    runtime: node
+    plan: free            # Grátis. Observação: no plano free o serviço "dorme"
+                          # após ~15 min sem tráfego; a 1ª chamada seguinte
+                          # demora alguns segundos para "acordar".
+    rootDir: server       # A API roda a partir de server/ (mesmo com o repo inteiro clonado).
+    buildCommand: npm ci  # Instala EXATAMENTE o package-lock.json (sem devDeps em produção).
+    startCommand: npm start  # tsx src/index.ts (produção, sem watch).
+    healthCheckPath: /api/health  # O Render bate aqui para saber se subiu ok.
+    autoDeploy: true      # Todo push no branch conectado dispara deploy.
+    envVars:
+      # Connection string do Postgres do Neon. sync: false = NÃO vai no repo;
+      # você cola o valor no painel do Render (Environment). MANTENHA o
+      # ?sslmode=require que o Neon já inclui (o SSL depende disso).
+      - key: DATABASE_URL
+        sync: false
+      # Origens permitidas do app em produção, separadas por vírgula. Ex.:
+      #   https://app.bta.com.br,https://www.bta.com.br
+      # Opcional: se deixar em branco, a API aceita qualquer origem (bom para
+      # testar; para produção, preencha para travar o CORS).
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: NODE_ENV
+        value: production

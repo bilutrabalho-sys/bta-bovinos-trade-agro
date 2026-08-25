@@ -184,6 +184,115 @@ use apenas em bancos de dev/staging). Depois `npm start`.
 
 ---
 
+## Deploy (Neon + Render) — passo a passo
+
+Objetivo: colocar a API no ar de graça, com o Postgres num serviço gerenciado
+(**Neon**) e a API num serviço web (**Render**). Nada disso quebra o seu ambiente
+local — você continua usando `npm run dev` normalmente.
+
+> **Como funciona a divisão:** o **Neon** guarda o banco. O **Render** roda a API.
+> As **migrations você aplica UMA vez, do seu PC, apontando para o Neon** (o
+> Render não roda migrations — ele só sobe o servidor).
+
+### Passo 1 — Criar o banco no Neon (grátis, sem cartão)
+
+1. Acesse **neon.tech** e crie a conta (pode entrar com o GitHub).
+2. **Create project**. Dê um nome (ex.: `bta`). Em região, escolha **US East**
+   (ex.: *US East (Ohio)*) — combina com a região sugerida do Render e reduz a
+   latência entre API e banco.
+3. Na tela do projeto, copie a **connection string** (Neon chama de
+   *Connection string* / *Database URL*). Ela se parece com:
+
+   ```
+   postgres://SEU_USUARIO:SUA_SENHA@ep-xxxx-xxxx.us-east-2.aws.neon.tech/bta?sslmode=require
+   ```
+
+   > **Mantenha o `?sslmode=require` no final** — é ele que liga a criptografia
+   > SSL (obrigatória no Neon). Guarde essa string; é seu `DATABASE_URL`.
+
+### Passo 2 — Aplicar o banco no Neon (rodando do seu PC)
+
+No **PowerShell**, dentro da pasta `server`, defina a variável e rode o setup.
+Escolha um dos dois modos:
+
+```powershell
+cd server
+
+# Modo DEMO/cheio (recomendado para testar tudo navegável — Rafael, lotes, etc.):
+$env:DATABASE_URL = "postgres://...neon.tech/bta?sslmode=require"
+npm run db:setup:demo
+
+# OU modo PRODUÇÃO (só o catálogo da plataforma; tabelas de usuário vazias):
+$env:DATABASE_URL = "postgres://...neon.tech/bta?sslmode=require"
+npm run db:setup
+```
+
+> A `DATABASE_URL` acima vale só para essa janela do PowerShell (não altera seu
+> `.env` local). Ao fechar o terminal, ela some. Se quiser limpar antes de
+> voltar ao dev local: `Remove-Item Env:DATABASE_URL`.
+>
+> No macOS/Linux o equivalente é:
+> `DATABASE_URL="postgres://...?sslmode=require" npm run db:setup:demo`
+>
+> Um aviso `sslmode=require` marcado como *deprecated* pode aparecer nos logs do
+> driver — é **cosmético**, a conexão funciona e é criptografada.
+
+Deu certo quando aparecer `✅ concluído com sucesso`.
+
+### Passo 3 — Subir a API no Render (grátis)
+
+**Caminho recomendado (mais simples, sem arquivo de config):**
+
+1. Acesse **render.com** e crie a conta com o **GitHub**.
+2. **New → Web Service** e selecione o repositório `bta-bovinos-trade-agro`.
+3. Preencha:
+   - **Root Directory:** `server`
+   - **Runtime/Environment:** `Node`
+   - **Build Command:** `npm ci`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/api/health`
+   - **Instance Type / Plan:** `Free`
+   - **Region:** *US East (Ohio/Virginia)* (mesma família do Neon).
+4. Em **Environment Variables**, adicione:
+   - `DATABASE_URL` = a connection string do Neon (a mesma do Passo 2, **com
+     `?sslmode=require`**).
+   - `ALLOWED_ORIGINS` *(opcional)* = as origens do seu app, separadas por
+     vírgula (ex.: `https://app.bta.com.br,https://www.bta.com.br`). Se deixar
+     em branco, a API aceita qualquer origem (bom para testar).
+5. **Create Web Service**. O Render instala e sobe. Acompanhe em *Logs* até ver
+   `[bta-server] escutando na porta ...`.
+
+**Caminho alternativo (Blueprint / Infra as Code):** existe um `server/render.yaml`
+pronto. Como o Render só detecta esse arquivo na **raiz** do repositório, para
+usar o Blueprint copie `server/render.yaml` para a raiz e então use
+**New → Blueprint**. Para a maioria dos casos, o caminho recomendado acima é
+mais fácil.
+
+### Passo 4 — Pegar a URL pública e testar
+
+O Render te dá uma URL tipo `https://bta-server.onrender.com`. Teste no
+navegador (ou `curl`):
+
+```
+https://bta-server.onrender.com/api/health   ->  {"ok":true,"service":"bta-server"}
+https://bta-server.onrender.com/api/lots      ->  lista de lotes (JSON)
+```
+
+Se `/api/health` responde `{"ok":true}`, a API está no ar. Se `/api/lots` vier
+vazio, você provavelmente aplicou o seed de **produção** (Passo 2) em vez do
+**demo** — rode `npm run db:setup:demo` apontando para o Neon novamente.
+
+> **Plano Free do Render:** o serviço "dorme" após ~15 min sem acesso; a primeira
+> chamada depois disso leva alguns segundos para "acordar". Normal no grátis.
+
+### Passo 5 — Ligar o app do frontend
+
+No app/deploy do frontend, aponte as chamadas para a URL pública do Render
+(ex.: `https://bta-server.onrender.com/api/...`) e coloque a origem do frontend
+em `ALLOWED_ORIGINS` no Render para travar o CORS.
+
+---
+
 ## Nota sobre RLS / segurança (dev x produção)
 
 Em **dev** conectamos como o **dono do banco** (usuário de serviço único), então
