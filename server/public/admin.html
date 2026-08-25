@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Painel interno BTA — cotação de referência</title>
+  <style>
+    :root {
+      --bg: #f3f4f1; --surface: #ffffff; --border: #dfe3dc;
+      --text: #14261c; --muted: #6b746e; --primary: #123b2a; --amber: #c8933a;
+      --success: #1f7a4d; --error: #b3261e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.45; padding: 24px 16px 64px;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    header { margin-bottom: 8px; }
+    h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; margin-bottom: 16px;
+    }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], input[type="password"], input[type="number"], input[type="date"] {
+      width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+      border-radius: 9px; font-size: 14px; background: #fff; color: var(--text);
+    }
+    input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+    button {
+      font: inherit; font-weight: 700; cursor: pointer; border: none;
+      border-radius: 9px; padding: 9px 16px; background: var(--primary); color: #fff;
+    }
+    button.secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .row-token { display: flex; gap: 8px; align-items: flex-end; }
+    .row-token > div { flex: 1; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.cat { font-weight: 700; }
+    td.cur { color: var(--amber); font-weight: 700; white-space: nowrap; }
+    td .meta { color: var(--muted); font-size: 11px; }
+    td .newprice { width: 120px; }
+    .muted { color: var(--muted); }
+    .toast { padding: 11px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; display: none; }
+    .toast.ok { display: block; background: #e6f4ec; color: var(--success); border: 1px solid #bfe3cf; }
+    .toast.err { display: block; background: #fbe9e7; color: var(--error); border: 1px solid #f3c9c4; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .badge { display: inline-block; background: #eef1ec; color: var(--muted); font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Painel interno BTA — cotação de referência</h1>
+      <p class="sub">Entrada manual dos preços de mercado pela equipe. Uso interno. Os valores publicados aparecem no app como cotação de referência, de caráter informativo.</p>
+    </header>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Token -->
+    <div class="card">
+      <div class="row-token">
+        <div>
+          <label for="token">Token de acesso (ADMIN_TOKEN)</label>
+          <input id="token" type="password" placeholder="Cole aqui o token do painel" autocomplete="off" />
+        </div>
+        <button id="btnLoad" type="button">Entrar / Atualizar</button>
+      </div>
+      <p class="hint">O token fica salvo apenas neste navegador (localStorage). Nunca é enviado a terceiros.</p>
+    </div>
+
+    <!-- Preços -->
+    <div class="card" id="pricesCard" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Categoria</th>
+            <th>Preço atual</th>
+            <th>Fonte / atualizado</th>
+            <th>Novo preço</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="actions">
+        <button id="btnSave" type="button">Salvar preços preenchidos</button>
+        <span id="saveHint" class="hint" style="align-self:center;">Preencha apenas as categorias que quer atualizar.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mesma origem do servidor -> caminhos relativos funcionam sem CORS.
+    var API = '/api/admin/market/prices';
+    var TOKEN_KEY = 'bta_admin_token';
+
+    var $ = function (id) { return document.getElementById(id); };
+    var tokenInput = $('token');
+    var toast = $('toast');
+
+    function showToast(msg, ok) {
+      toast.textContent = msg;
+      toast.className = 'toast ' + (ok ? 'ok' : 'err');
+    }
+    function clearToast() { toast.className = 'toast'; toast.textContent = ''; }
+
+    function getToken() { return (tokenInput.value || '').trim(); }
+    function authHeaders() { return { 'Authorization': 'Bearer ' + getToken() }; }
+
+    function fmtBR(n, unit) {
+      if (n === null || n === undefined) return '—';
+      var s = Number(n).toLocaleString('pt-BR', { minimumFractionDigits: unit === '/cab' ? 0 : 2 });
+      return 'R$ ' + s + (unit ? ' ' + unit : '');
+    }
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      var p = String(iso).split('-'); // YYYY-MM-DD
+      return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : iso;
+    }
+
+    // Restaura token salvo e carrega automaticamente.
+    (function init() {
+      var saved = '';
+      try { saved = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { saved = ''; }
+      if (saved) { tokenInput.value = saved; load(); }
+    })();
+
+    $('btnLoad').addEventListener('click', function () {
+      var t = getToken();
+      if (!t) { showToast('Informe o token de acesso.', false); return; }
+      try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* ignora */ }
+      load();
+    });
+
+    function load() {
+      clearToast();
+      fetch(API, { headers: authHeaders() })
+        .then(function (res) {
+          return res.json().then(function (data) { return { status: res.status, data: data }; });
+        })
+        .then(function (r) {
+          if (r.status === 503) { showToast(r.data.error || 'Painel desabilitado no servidor.', false); return; }
+          if (r.status === 401) { showToast('Token inválido. Verifique e tente de novo.', false); return; }
+          if (r.status !== 200) { showToast(r.data.error || ('Erro ' + r.status), false); return; }
+          render(r.data.prices || []);
+        })
+        .catch(function () { showToast('Falha de conexão com o servidor.', false); });
+    }
+
+    function render(prices) {
+      var tbody = $('tbody');
+      tbody.innerHTML = '';
+      prices.forEach(function (p) {
+        var tr = document.createElement('tr');
+
+        var tdCat = document.createElement('td');
+        tdCat.className = 'cat';
+        tdCat.textContent = p.category;
+        tr.appendChild(tdCat);
+
+        var tdCur = document.createElement('td');
+        tdCur.className = 'cur';
+        tdCur.textContent = fmtBR(p.current, p.unit);
+        tr.appendChild(tdCur);
+
+        var tdMeta = document.createElement('td');
+        var src = p.source || '—';
+        tdMeta.innerHTML = '<span class="badge">' + escapeHtml(src) + '</span><div class="meta">atualizado em ' + fmtDate(p.updatedAt) + '</div>';
+        tr.appendChild(tdMeta);
+
+        var tdNew = document.createElement('td');
+        var inp = document.createElement('input');
+        inp.type = 'number';
+        inp.step = p.unit === '/cab' ? '1' : '0.01';
+        inp.min = '0';
+        inp.className = 'newprice';
+        inp.placeholder = p.unit || '';
+        inp.setAttribute('data-category', p.category);
+        tdNew.appendChild(inp);
+        tr.appendChild(tdNew);
+
+        tbody.appendChild(tr);
+      });
+      $('pricesCard').style.display = prices.length ? 'block' : 'none';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    $('btnSave').addEventListener('click', function () {
+      clearToast();
+      var inputs = document.querySelectorAll('input.newprice');
+      var items = [];
+      for (var i = 0; i < inputs.length; i++) {
+        var v = (inputs[i].value || '').trim();
+        if (v === '') continue;
+        var num = Number(v);
+        if (!isFinite(num) || num <= 0) {
+          showToast('Preço inválido em "' + inputs[i].getAttribute('data-category') + '". Use um número maior que zero.', false);
+          return;
+        }
+        items.push({ category: inputs[i].getAttribute('data-category'), value: num });
+      }
+      if (items.length === 0) { showToast('Preencha ao menos um preço para salvar.', false); return; }
+
+      var btn = $('btnSave');
+      btn.disabled = true;
+      fetch(API, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ items: items }),
+      })
+        .then(function (res) {
+          return res.json().then(function (data) { return { status: res.status, data: data }; });
+        })
+        .then(function (r) {
+          btn.disabled = false;
+          if (r.status !== 200) { showToast(r.data.error || ('Erro ' + r.status), false); return; }
+          var n = (r.data.updated || []).length;
+          showToast(n + ' preço(s) atualizado(s) com sucesso.', true);
+          load(); // recarrega os valores atuais
+        })
+        .catch(function () { btn.disabled = false; showToast('Falha de conexão ao salvar.', false); });
+    });
+  </script>
+</body>
+</html>

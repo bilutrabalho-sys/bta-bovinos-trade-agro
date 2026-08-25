@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -6,12 +8,16 @@ import cors from 'cors';
 import lotsRouter from './routes/lots';
 import farmsRouter from './routes/farms';
 import marketRouter from './routes/market';
+import adminMarketRouter from './routes/admin-market';
 import discoveryRouter from './routes/discovery';
 import academyRouter from './routes/academy';
 import engagementRouter from './routes/engagement';
 import logisticsRouter from './routes/logistics';
 import businessRouter from './routes/business';
 import { pgErrorStatus } from './helpers';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url)); // .../server/src
+const PUBLIC_DIR = path.resolve(HERE, '..', 'public'); // .../server/public
 
 const app = express();
 
@@ -45,10 +51,19 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true, service: 'bta-server' });
 });
 
+// Painel administrativo interno (HTML estático em server/public).
+// `/admin` serve o formulário; o restante do diretório é servido como arquivos.
+app.get('/admin', (_req: Request, res: Response) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
+});
+app.use(express.static(PUBLIC_DIR));
+
 // Rotas de domínio (todas sob /api).
 app.use('/api', lotsRouter);
 app.use('/api', farmsRouter);
 app.use('/api', marketRouter);
+// Painel admin de preços (protegido por token; ver admin-auth.ts).
+app.use('/api/admin/market', adminMarketRouter);
 app.use('/api', discoveryRouter);
 app.use('/api', academyRouter);
 app.use('/api', engagementRouter);

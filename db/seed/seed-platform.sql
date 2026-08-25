@@ -84,8 +84,8 @@ insert into course_category (name) values
 --  2. MERCADO
 --  market_prices: 1 linha por categoria (snapshot corrente; region/state NULL = nacional).
 -- ============================================================================
-insert into market_prices (category_id, current, change, unit, color, region, state)
-select cc.id, v.current, v.change, v.unit::price_unit, v.color, null, null
+insert into market_prices (category_id, current, change, unit, color, region, state, source)
+select cc.id, v.current, v.change, v.unit::price_unit, v.color, null, null, 'Demonstração'
 from (values
   ('Boi Gordo', 315.40, 2.30, '/@', '#123B2A'),
   ('Vaca', 220.80, -0.80, '/@', '#1E5A40'),

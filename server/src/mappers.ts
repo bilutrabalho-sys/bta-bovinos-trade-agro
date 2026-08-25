@@ -152,6 +152,8 @@ export interface MarketEntry {
   change: number;
   unit: PriceUnit;
   color: string;
+  source: string; // rótulo da fonte da cotação ("—" quando não informada)
+  updatedAt: string; // data da última atualização (YYYY-MM-DD, do snapshot_at)
   history7: MarketPoint[];
   history30: MarketPoint[];
   history90: MarketPoint[];
@@ -186,6 +188,8 @@ export function buildMarketData(
       change: asNumber(s.change),
       unit: asPriceUnit(s.unit),
       color: asString(s.color),
+      source: asString(s.source, '—'),
+      updatedAt: asString(s.updated_at),
       history7: h7.get(cat) ?? [],
       history30: h30.get(cat) ?? [],
       history90: h90.get(cat) ?? [],

@@ -7,8 +7,12 @@ import { buildMarketData } from '../mappers';
 const router = Router();
 
 // Snapshot corrente por categoria (region/state NULL = nacional).
+// source: fonte da cotação (fallback "—" quando não informada).
+// updated_at: data (YYYY-MM-DD) do snapshot_at, para o app exibir "atualizado em".
 const SNAPSHOT_SQL = `
-  select cc.name as category, mp.current, mp.change, mp.unit, mp.color
+  select cc.name as category, mp.current, mp.change, mp.unit, mp.color,
+         coalesce(mp.source, '—') as source,
+         to_char(mp.snapshot_at, 'YYYY-MM-DD') as updated_at
   from market_prices mp
   join cattle_category cc on cc.id = mp.category_id
   where mp.region is null and mp.state is null

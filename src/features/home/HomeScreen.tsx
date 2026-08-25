@@ -65,6 +65,7 @@ export function HomeScreen({ onNavigate, onTab }: {
                 <PriceCard key={name} name={name} current={data.current} change={data.change} unit={data.unit} onPress={() => onTab('market')} />
               ))}
             </div>
+            <p className="text-bta-muted text-[11px] mt-1 px-0.5">Fonte: {marketEntries[0]?.[1]?.source}</p>
           </div>
           )}
 

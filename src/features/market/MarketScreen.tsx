@@ -109,6 +109,13 @@ export function MarketScreen({ onBack, onTab, onNavigate, onCompare }: {
                 </div>
               ))}
             </div>
+            {/* Fonte + data + disclaimer da cotação (transparência) */}
+            <div className="mt-4 pt-3 border-t border-bta-border">
+              <p className="text-bta-muted text-xs">
+                Fonte: {data.source} · atualizado em {data.updatedAt.split('-').reverse().slice(0, 2).join('/')}
+              </p>
+              <p className="text-bta-muted text-xs mt-0.5">Cotação de referência, caráter informativo — não constitui oferta.</p>
+            </div>
           </div>
 
           {/* Indicators */}
