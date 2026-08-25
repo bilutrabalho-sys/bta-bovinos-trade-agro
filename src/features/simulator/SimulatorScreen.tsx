@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Lot } from '@/data/mock'
 import { useData } from '@/data/DataProvider'
+import { useAuthGate } from '@/auth/AuthGate'
 import type { Screen } from '@/core/navigation'
 import { Header, Btn, Ic } from '@/components'
 
@@ -20,6 +21,7 @@ export function SimulatorScreen({ onBack, onNavigate, onCompare, prefillLot }: {
   onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void; onCompare: (ids: number[]) => void; prefillLot?: Lot | null
 }) {
   const { LOTS } = useData()
+  const { requireAuth } = useAuthGate()
   const [qty, setQty] = useState(String(prefillLot?.quantity ?? 50))
   const [buyPrice, setBuyPrice] = useState(String(prefillLot ? (prefillLot.priceUnit === '/@' ? prefillLot.price : Math.round(prefillLot.price / (prefillLot.weight / 15))) : 2400))
   const [freight, setFreight] = useState(String(prefillLot?.freight ?? 5000))
@@ -104,13 +106,13 @@ export function SimulatorScreen({ onBack, onNavigate, onCompare, prefillLot }: {
           sound="cta"
           disabled={!prefillLot}
           title={!prefillLot ? 'Simule a partir de um lote para fazer proposta' : undefined}
-          onClick={() => prefillLot && onNavigate('negotiation', prefillLot.id)}
+          onClick={() => prefillLot && requireAuth(() => onNavigate('negotiation', prefillLot.id), 'Entre para fazer uma proposta')}
           className={`w-full font-display font-bold text-base py-4 rounded-xl ${prefillLot ? 'btn-primary-grad text-white' : 'bg-bta-border text-bta-muted opacity-50 cursor-not-allowed'}`}
         >
           Fazer proposta
         </Btn>
         <div className="flex gap-3">
-          <Btn sound="success" onClick={() => onNavigate('business')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm flex items-center justify-center gap-1.5">
+          <Btn sound="success" onClick={() => requireAuth(() => onNavigate('business'), 'Entre para salvar simulações')} className="flex-1 py-3 rounded-xl border border-bta-border text-bta-text font-display font-semibold text-sm flex items-center justify-center gap-1.5">
             <Ic.Check /> Salvar simulação
           </Btn>
           <Btn

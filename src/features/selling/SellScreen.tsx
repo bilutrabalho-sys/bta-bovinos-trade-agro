@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
+import { useAuthGate } from '@/auth/AuthGate'
 import type { Screen } from '@/core/navigation'
 import { Header, Ic, LotImage, EmptyState } from '@/components'
 
 export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void }) {
   const { LOTS } = useData()
+  const { requireAuth } = useAuthGate()
+  const createListing = () => requireAuth(() => onNavigate('create-listing'), 'Entre para anunciar seu gado')
   const [tab, setTab] = useState('Ativos')
   const myLots = LOTS.slice(0, 3).map((l, i) => ({ ...l, proposals: [2, 1, 0][i], views: [148, 63, 12][i], favorites: [24, 8, 2][i], status: ['Ativo', 'Ativo', 'Publicado'][i] }))
   const tabLots = myLots.filter(l => tab === 'Ativos' ? true : tab === 'Propostas' ? l.proposals > 0 : false)
@@ -21,7 +24,7 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
           <h1 className="font-display font-black text-bta-text text-2xl mb-1" style={{ letterSpacing: '-0.02em' }}>Venda seu gado</h1>
           <p className="text-bta-muted text-sm">Gerencie seus anúncios e propostas.</p>
         </div>
-        <button onClick={() => onNavigate('create-listing')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl flex items-center justify-center gap-2">
+        <button onClick={createListing} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl flex items-center justify-center gap-2">
           <Ic.Plus /> Cadastrar lote
         </button>
         {myLots.length === 0 ? (
@@ -29,7 +32,7 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
             icon={<Ic.Clipboard />}
             title="Você ainda não anunciou"
             description="Cadastre seu primeiro lote e comece a receber propostas de compradores."
-            cta={{ label: 'Cadastrar meu primeiro lote', onClick: () => onNavigate('create-listing') }}
+            cta={{ label: 'Cadastrar meu primeiro lote', onClick: createListing }}
           />
         ) : (
         <>

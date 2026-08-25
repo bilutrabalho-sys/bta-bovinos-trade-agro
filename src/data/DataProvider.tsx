@@ -13,7 +13,8 @@
 //
 // AI_SUGGESTIONS é sempre a constante local do mock — nunca vem da API.
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import {
   LOTS, FARMS, MARKET_DATA, OPPORTUNITIES, NOTIFICATIONS, COURSES,
   RADAR_ALERTS, MATCH_RESULTS, CHAT_MESSAGES, AI_SUGGESTIONS,
@@ -105,14 +106,22 @@ function ErrorScreen({ onRetry }: { onRetry: () => void }) {
 // ─── Provider do modo `api` (carrega do backend) ─────────────────────────────
 
 function ApiDataProvider({ children }: { children: ReactNode }) {
+  // Observa o token do AuthContext: quando ele muda (login/logout/excluir conta)
+  // as coleções são re-buscadas com a nova credencial, de modo que as seções
+  // pessoais (favoritos, notificações, radar, simulações, chat...) preencham ao
+  // logar e esvaziem ao sair.
+  const { token } = useAuth()
   const [data, setData] = useState<AppData | null>(null)
   const [error, setError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  // 1º carregamento: mostra LoadingScreen. Re-fetch por mudança de token:
+  // mantém a tela atual e atualiza em 2º plano (sem flash, sem tela de erro).
+  const isInitial = useRef(true)
 
   useEffect(() => {
     let cancelled = false
     setError(false)
-    setData(null)
+    if (isInitial.current) setData(null)
     Promise.all([
       fetchLots(), fetchFarms(), fetchMarket(), fetchOpportunities(),
       fetchNotifications(), fetchCourses(), fetchRadarAlerts(), fetchMatchResults(),
@@ -126,6 +135,7 @@ function ApiDataProvider({ children }: { children: ReactNode }) {
         savedSimulations,
       ]) => {
         if (cancelled) return
+        isInitial.current = false
         setData({
           LOTS: lots,
           FARMS: farms,
@@ -144,10 +154,12 @@ function ApiDataProvider({ children }: { children: ReactNode }) {
         })
       })
       .catch(() => {
-        if (!cancelled) setError(true)
+        // Falha no carregamento inicial => tela de erro. Falha num re-fetch de
+        // token (login/logout) => mantém os dados atuais silenciosamente.
+        if (!cancelled && isInitial.current) setError(true)
       })
     return () => { cancelled = true }
-  }, [reloadKey])
+  }, [reloadKey, token])
 
   const retry = useCallback(() => setReloadKey(k => k + 1), [])
 

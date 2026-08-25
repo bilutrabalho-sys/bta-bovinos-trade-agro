@@ -9,6 +9,7 @@
 // mock — por isso não há `fetch` para ela aqui.
 
 import type { Lot, Farm } from './mock'
+import { getStoredToken } from '../auth/token'
 
 // Tipos das coleções derivados diretamente dos exports do mock (somente em
 // nível de tipo, sem carregar o mock em runtime), garantindo que o contrato
@@ -27,12 +28,48 @@ type SavedSimulations = typeof import('./mock').SAVED_SIMULATIONS
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
+// Erro específico de "precisa estar logado" (HTTP 401 numa escrita/leitura
+// autenticada). O app trata este erro levando o usuário ao login, em vez de
+// mostrar um erro genérico. NUNCA carrega token/senha.
+export class AuthRequiredError extends Error {
+  constructor(message = 'Autenticação necessária.') {
+    super(message)
+    this.name = 'AuthRequiredError'
+  }
+}
+
+// Monta os headers padrão, anexando `Authorization: Bearer <token>` quando há
+// token guardado (mesma chave do AuthContext). Leituras públicas funcionam sem
+// token; leituras pessoais passam a vir preenchidas quando ele existe.
+function authHeaders(base: Record<string, string> = {}): Record<string, string> {
+  const token = getStoredToken()
+  return token ? { ...base, Authorization: `Bearer ${token}` } : base
+}
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_URL}/api${path}`, {
-    headers: { Accept: 'application/json' },
+    headers: authHeaders({ Accept: 'application/json' }),
   })
   if (!res.ok) {
     throw new Error(`GET /api${path} falhou: ${res.status} ${res.statusText}`)
+  }
+  return (await res.json()) as T
+}
+
+// POST autenticado para as ESCRITAS pessoais. Em 401 (anônimo ou sessão
+// expirada) lança AuthRequiredError para o app pedir login; outros erros viram
+// Error comum.
+async function postJSON<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}/api${path}`, {
+    method: 'POST',
+    headers: authHeaders({ Accept: 'application/json', 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) {
+    throw new AuthRequiredError()
+  }
+  if (!res.ok) {
+    throw new Error(`POST /api${path} falhou: ${res.status} ${res.statusText}`)
   }
   return (await res.json()) as T
 }
@@ -50,3 +87,18 @@ export const fetchChatMessages = () => getJSON<ChatMessages>('/chat-messages')
 export const fetchTransporters = () => getJSON<Transporters>('/transporters')
 export const fetchServices = () => getJSON<Services>('/services')
 export const fetchSavedSimulations = () => getJSON<SavedSimulations>('/saved-simulations')
+
+// ─── Escritas pessoais (exigem Bearer; 401 => AuthRequiredError) ─────────────
+
+// POST /api/favorites — favorita um lote do usuário logado. body { lotId }.
+export const createFavorite = (lotId: number) =>
+  postJSON<unknown>('/favorites', { lotId })
+
+// POST /api/proposals — cria uma proposta do comprador logado.
+// body { lotId, quantity, pricePerUnit, priceUnit }.
+export const createProposal = (input: {
+  lotId: number
+  quantity: number
+  pricePerUnit: number
+  priceUnit: '/@' | '/cab'
+}) => postJSON<unknown>('/proposals', input)

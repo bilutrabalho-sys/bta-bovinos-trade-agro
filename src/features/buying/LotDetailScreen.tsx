@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import type { Lot } from '@/data/mock'
 import { useData } from '@/data/DataProvider'
+import { useAuth } from '@/auth/AuthContext'
+import { useAuthGate } from '@/auth/AuthGate'
+import { createFavorite, AuthRequiredError } from '@/data/api'
 import type { Screen } from '@/core/navigation'
 import { Ic, VerifiedBadge, BTAScore, Btn, LotImage } from '@/components'
 
@@ -23,10 +26,26 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
   lotId: number; onBack: () => void; onNavigate: (s: Screen) => void; onFarm: (id: number) => void; onSimulate: (lotId: number) => void
 }) {
   const { LOTS, FARMS, MARKET_DATA } = useData()
+  const { isDemo } = useAuth()
+  const { requireAuth, promptLogin } = useAuthGate()
   const lot = LOTS.find(l => l.id === lotId)!
   const farm = FARMS.find(f => f.id === lot.sellerId)!
   const [imgIdx, setImgIdx] = useState(0)
   const [saved, setSaved] = useState(false)
+
+  // Favoritar exige conta (gate). Em modo api, ao marcar (não ao desmarcar)
+  // persiste no backend; em demo roda como hoje, sem backend nem gate.
+  const toggleSave = () => {
+    requireAuth(() => {
+      const next = !saved
+      setSaved(next)
+      if (!isDemo && next) {
+        createFavorite(lot.id).catch(err => {
+          if (err instanceof AuthRequiredError) promptLogin('Sua sessão expirou. Entre novamente.')
+        })
+      }
+    }, 'Entre para salvar favoritos')
+  }
   const marketRef = (MARKET_DATA as Record<string, { current: number }>)[lot.category]
   const vsMarket = marketRef ? ((lot.price - marketRef.current) / marketRef.current) * 100 : null
   const scoreBreakdown = [
@@ -153,11 +172,11 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
       </div>
 
       <div className="px-5 pb-8 pt-4 bg-bta-surface border-t border-bta-border">
-        <Btn sound="cta" onClick={() => onNavigate('negotiation')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl mb-3">Fazer proposta</Btn>
+        <Btn sound="cta" onClick={() => requireAuth(() => onNavigate('negotiation'), 'Entre para fazer uma proposta')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl mb-3">Fazer proposta</Btn>
         <div className="flex gap-3">
           <Btn
             sound="select"
-            onClick={() => setSaved(s => !s)}
+            onClick={toggleSave}
             className={`flex-1 py-3 rounded-xl border font-display font-semibold text-sm transition-colors ${saved ? 'border-bta-amber text-bta-amber bg-bta-amber-light' : 'border-bta-border text-bta-text bg-bta-bg'}`}
           >
             <span className={`inline-flex items-center gap-1.5 ${saved ? 'heartbeat' : ''}`}><Ic.Star filled={saved} /> {saved ? 'Salvo' : 'Salvar'}</span>

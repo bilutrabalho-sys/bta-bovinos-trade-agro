@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useData } from './data/DataProvider'
+import { useAuth } from './auth/AuthContext'
+import { AuthGateProvider, type AuthGate } from './auth/AuthGate'
 import type { BuyFilters, Screen, Tab } from './core/navigation'
+import { LoginScreen } from './features/auth/LoginScreen'
+import { RegisterScreen } from './features/auth/RegisterScreen'
 import { SplashScreen } from './features/onboarding/SplashScreen'
 import { TermsScreen } from './features/onboarding/TermsScreen'
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen'
@@ -36,8 +40,13 @@ import { NotificationsScreen } from './features/profile/NotificationsScreen'
 // ─── Main App ───────────────────────────────────────────────────────────────
 export default function App() {
   const { LOTS } = useData()
+  const { isDemo, isAuthenticated } = useAuth()
   const [screen, setScreen] = useState<Screen>('splash')
   const [history, setHistory] = useState<Screen[]>([])
+  // Fluxo de autenticação (modo api): tela de origem p/ voltar após login e a
+  // mensagem curta do gate ("Entre para favoritar" etc.).
+  const [authReturn, setAuthReturn] = useState<Screen | null>(null)
+  const [loginMessage, setLoginMessage] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [selectedLotId, setSelectedLotId] = useState<number>(1)
   const [selectedFarmId, setSelectedFarmId] = useState<number>(1)
@@ -66,6 +75,31 @@ export default function App() {
   const navigateSimulatorWithLot = (lotId: number) => { setPreFillLotId(lotId); navigate('simulator') }
   const navigateResults = (filters: BuyFilters) => { setBuyFilters(filters); navigate('results') }
   const navigateLesson = (courseId: number) => { setSelectedCourseId(courseId); navigate('lesson') }
+
+  // ─── Autenticação: gate + navegação para login/cadastro ────────────────────
+  // goAuth lembra a tela de origem só ao ENTRAR no fluxo (persiste ao alternar
+  // login↔cadastro) e NÃO usa a pilha de histórico, para não interferir no back
+  // do app. leaveAuth volta à origem (sucesso ou cancelar).
+  const goAuth = (target: 'login' | 'register', message?: string) => {
+    setLoginMessage(message ?? null)
+    if (screen !== 'login' && screen !== 'register') setAuthReturn(screen)
+    setScreen(target)
+  }
+  const leaveAuth = () => {
+    const target = authReturn ?? 'home'
+    setLoginMessage(null)
+    setAuthReturn(null)
+    setScreen(target)
+  }
+  const promptLogin = (message?: string) => goAuth('login', message)
+  const promptRegister = (message?: string) => goAuth('register', message)
+  // requireAuth: em demo (mock) ou logado, roda a ação. Deslogado (api) => login.
+  const requireAuth = (action: () => void, message?: string): boolean => {
+    if (isDemo || isAuthenticated) { action(); return true }
+    promptLogin(message ?? 'Entre para continuar')
+    return false
+  }
+  const authGate: AuthGate = { requireAuth, promptLogin, promptRegister }
 
   const prefillLot = preFillLotId ? LOTS.find(l => l.id === preFillLotId) ?? null : null
 
@@ -102,17 +136,21 @@ export default function App() {
       case 'favorites': return <FavoritesScreen onBack={back} onLot={navigateLot} onFarm={navigateFarm} />
       case 'bta-pro': return <BTAProScreen onBack={back} />
       case 'seller-analytics': return <SellerAnalyticsScreen onBack={back} />
+      case 'login': return <LoginScreen message={loginMessage} onSuccess={leaveAuth} onRegister={() => goAuth('register')} onBack={leaveAuth} />
+      case 'register': return <RegisterScreen message={loginMessage} onSuccess={leaveAuth} onLogin={() => goAuth('login')} onBack={leaveAuth} />
       default: return <HomeScreen onNavigate={navigate} onTab={goTab} />
     }
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center" style={{ background: '#DDE0DA' }}>
-      <div className="relative w-full bg-bta-bg flex flex-col overflow-hidden" style={{ maxWidth: 390, minHeight: '100dvh' }}>
-        <div key={screen} className={screen === 'splash' || screen === 'onboarding' || screen === 'terms' ? '' : 'slide-in'} style={{ display: 'contents' }}>
-          {renderScreen()}
+    <AuthGateProvider value={authGate}>
+      <div className="min-h-screen flex items-start justify-center" style={{ background: '#DDE0DA' }}>
+        <div className="relative w-full bg-bta-bg flex flex-col overflow-hidden" style={{ maxWidth: 390, minHeight: '100dvh' }}>
+          <div key={screen} className={screen === 'splash' || screen === 'onboarding' || screen === 'terms' ? '' : 'slide-in'} style={{ display: 'contents' }}>
+            {renderScreen()}
+          </div>
         </div>
       </div>
-    </div>
+    </AuthGateProvider>
   )
 }

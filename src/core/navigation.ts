@@ -6,7 +6,7 @@ export type Screen =
   | 'notifications' | 'negotiation' | 'bta-check' | 'farm-profile'
   | 'opportunities' | 'compare' | 'deal-closed' | 'bta-log'
   | 'lesson' | 'bta-path' | 'services' | 'favorites' | 'bta-pro'
-  | 'seller-analytics'
+  | 'seller-analytics' | 'login' | 'register'
 
 export type Tab = 'home' | 'market' | 'academy' | 'business' | 'profile'
 

@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { sounds } from '@/utils/sound'
 import { useData } from '@/data/DataProvider'
+import { useAuthGate } from '@/auth/AuthGate'
 import { Header, Ic, EmptyState } from '@/components'
 
 export function RadarScreen({ onBack, onLot }: { onBack: () => void; onLot: (id: number) => void }) {
   const { RADAR_ALERTS, LOTS } = useData()
+  const { requireAuth } = useAuthGate()
   const [alerts, setAlerts] = useState(RADAR_ALERTS)
   const [showNew, setShowNew] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const bannerLot = LOTS.find(l => l.id === 3)!
-  const addAlert = () => {
+  // Criar alerta exige conta (gate). Em demo roda direto, como hoje.
+  const addAlert = () => requireAuth(() => {
     setAlerts(prev => [...prev, { id: Date.now(), title: 'Novo alerta', criteria: 'Defina categoria, preço máximo e distância', active: true, matches: 0 }])
-  }
+  }, 'Entre para criar alertas no Radar')
   const startEdit = (alert: (typeof RADAR_ALERTS)[number]) => { setEditingId(alert.id); setEditDraft(alert.criteria) }
   const saveEdit = (id: number) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, criteria: editDraft } : a))
