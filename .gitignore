@@ -6,6 +6,13 @@ dist/
 *.apk
 *.aab
 
+# Keystore de assinatura e senhas (CRITICO - NUNCA versionar).
+# Se vazar, qualquer um consegue assinar atualizacoes do app.
+keystore/
+*.jks
+*.keystore
+android/keystore.properties
+
 # Variaveis de ambiente locais (nao versionar). O template fica em .env.example
 .env
 .env.local

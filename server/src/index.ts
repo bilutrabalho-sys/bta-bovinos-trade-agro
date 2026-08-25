@@ -16,6 +16,7 @@ import engagementRouter from './routes/engagement';
 import logisticsRouter from './routes/logistics';
 import businessRouter from './routes/business';
 import { pgErrorStatus } from './helpers';
+import { apiLimiter } from './rate-limit';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)); // .../server/src
 const PUBLIC_DIR = path.resolve(HERE, '..', 'public'); // .../server/public
@@ -58,6 +59,12 @@ app.get('/admin', (_req: Request, res: Response) => {
   res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
 app.use(express.static(PUBLIC_DIR));
+
+// Proteção geral bem folgada sobre TODA a API (300 req/min/IP). Fica muito
+// acima do tráfego normal do app (vários fetches no boot) e do painel admin;
+// só corta rajadas anômalas. Vem ANTES dos routers /api, mas DEPOIS do
+// health-check e do /admin (que ficam de fora, isentos do limite).
+app.use('/api', apiLimiter);
 
 // Autenticação de usuário (login próprio: e-mail + senha + JWT).
 app.use('/api/auth', authRouter);

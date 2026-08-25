@@ -17,6 +17,7 @@ import { Router } from 'express';
 import { pool } from '../db';
 import type { Row } from '../db';
 import { asyncHandler } from '../helpers';
+import { loginLimiter, registerLimiter } from '../rate-limit';
 import {
   hashPassword,
   verifyPassword,
@@ -53,6 +54,7 @@ function normalizeEmail(v: unknown): string {
 // ---------------------------------------------------------------------------
 router.post(
   '/register',
+  registerLimiter,
   asyncHandler(async (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
 
@@ -108,6 +110,7 @@ router.post(
 // ---------------------------------------------------------------------------
 router.post(
   '/login',
+  loginLimiter,
   asyncHandler(async (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const email = normalizeEmail(body.email);
