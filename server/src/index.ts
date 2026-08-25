@@ -5,6 +5,7 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 
+import authRouter from './routes/auth';
 import lotsRouter from './routes/lots';
 import farmsRouter from './routes/farms';
 import marketRouter from './routes/market';
@@ -57,6 +58,9 @@ app.get('/admin', (_req: Request, res: Response) => {
   res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
 app.use(express.static(PUBLIC_DIR));
+
+// Autenticação de usuário (login próprio: e-mail + senha + JWT).
+app.use('/api/auth', authRouter);
 
 // Rotas de domínio (todas sob /api).
 app.use('/api', lotsRouter);

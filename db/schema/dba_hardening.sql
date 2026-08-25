@@ -506,6 +506,47 @@ alter default privileges in schema public
   grant select on tables to bta_readonly;
 
 
+-- ---- BLINDAGEM DA SENHA (users.password_hash) ------------------------------
+--  A senha NUNCA é lida pelas roles não-owner: a autenticação roda como o OWNER
+--  (login/registro/me/exclusão), não como bta_app/bta_readonly. Blindamos a
+--  coluna (defense-in-depth) para que NENHUMA query acidental sob RLS leia o hash.
+--
+--  ATENÇÃO ao gotcha do Postgres: um GRANT em nível de TABELA (os `grant ... on
+--  all tables ... to <role>` acima) cobre TODAS as colunas, e um `revoke
+--  (coluna)` isolado NÃO tem efeito enquanto o grant de tabela existir. Por isso,
+--  para `users`, REMOVEMOS o privilégio de tabela e RE-CONCEDEMOS coluna-a-coluna,
+--  exceto password_hash. Este bloco fica DEPOIS de todos os grants amplos de
+--  seção 7 de propósito (senão eles re-concederiam a coluna). Dinâmico (cobre
+--  colunas novas de futuras migrations) e idempotente. (do-guard: só após 016.)
+--  bta_admin (BYPASSRLS, jobs/backoffice privilegiados) fica intacto.
+do $$
+declare
+  cols text;
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'users' and column_name = 'password_hash'
+  ) then
+    select string_agg(quote_ident(column_name), ', ')
+      into cols
+      from information_schema.columns
+     where table_schema = 'public' and table_name = 'users'
+       and column_name <> 'password_hash';
+
+    -- App: troca o grant amplo de tabela por grants de coluna (sem o hash).
+    -- (DELETE é sempre de tabela — não há coluna a excluir — e fica intacto.)
+    execute 'revoke select, insert, update on users from bta_app';
+    execute format(
+      'grant select (%1$s), insert (%1$s), update (%1$s) on users to bta_app', cols
+    );
+
+    -- Readonly (BI): só SELECT nas colunas não sensíveis.
+    execute 'revoke select on users from bta_readonly';
+    execute format('grant select (%s) on users to bta_readonly', cols);
+  end if;
+end $$;
+
+
 -- ============================================================================
 --  7b. VIEW PÚBLICA DE USUÁRIO (minimizar exposição de PII — LGPD)
 -- ----------------------------------------------------------------------------
