@@ -2,6 +2,10 @@ node_modules/
 dist/
 .DS_Store
 
+# Artefatos de build do app Android (APK/AAB gerados). Nao versionar.
+*.apk
+*.aab
+
 # Variaveis de ambiente locais (nao versionar). O template fica em .env.example
 .env
 .env.local
