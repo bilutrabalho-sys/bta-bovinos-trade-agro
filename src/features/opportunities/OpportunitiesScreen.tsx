@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Lot } from '@/data/mock'
 import { useData } from '@/data/DataProvider'
-import { Header, BTAScore, Ic } from '@/components'
+import { Header, BTAScore, Ic, LotImage, EmptyState } from '@/components'
 
 // Picks up to 2 other lots of the same category as the opportunity, so
 // "Comparar" opens the Comparador with a real second/third lot instead of
@@ -25,7 +25,11 @@ export function OpportunitiesScreen({ onBack, onLot, onCompare }: { onBack: () =
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
         <div><h1 className="font-display font-black text-bta-text text-xl mb-1" style={{ letterSpacing: '-0.02em' }}>Oportunidades para você</h1><p className="text-bta-muted text-sm">Selecionadas com base no seu perfil e radar.</p></div>
         {visible.length === 0 ? (
-          <p className="text-bta-muted text-sm text-center py-10">Nenhuma oportunidade no momento. Ajuste seu Radar para encontrar mais.</p>
+          <EmptyState
+            icon={<Ic.Bolt />}
+            title="Nenhuma oportunidade no momento"
+            description="Ajuste seu Radar e o BTA avisa quando surgir um lote no seu critério."
+          />
         ) : (
         <div className="space-y-4">
           {visible.map(opp => {
@@ -33,7 +37,7 @@ export function OpportunitiesScreen({ onBack, onLot, onCompare }: { onBack: () =
             return (
               <button key={opp.id} onClick={() => onLot(lot.id)} className="w-full bg-bta-surface rounded-2xl border border-bta-border overflow-hidden text-left transition-transform active:scale-[0.98]">
                 <div className="h-32 relative bg-bta-primary-10">
-                  <img src={lot.image} alt={lot.title} className="w-full h-full object-cover" />
+                  <LotImage src={lot.image} alt={lot.title} size="md" />
                   <div className="absolute top-2 left-2 bg-bta-amber text-white text-[10px] font-display font-bold px-2 py-0.5 rounded-full">Oportunidade detectada</div>
                   <div className="absolute bottom-2 right-2"><BTAScore score={lot.score} size="sm" /></div>
                 </div>

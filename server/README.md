@@ -45,9 +45,23 @@ PORT=3001
 
 ## Preparar o banco (migrations + hardening + seed)
 
-```bash
-npm run db:setup
-```
+Existem **dois modos de seed** — a estrutura (migrations + hardening) é a mesma
+nos dois; só muda **quais dados** entram:
+
+| Modo | Comando | Seed aplicado | O que popula |
+| --- | --- | --- | --- |
+| **Produção** (padrão) | `npm run db:setup` | `db/seed/seed-platform.sql` | **Só dados de plataforma** (categorias, raças, finalidades, mercado, BTA Academy, planos, serviços, settings). **Tabelas de usuário nascem VAZIAS** (0 usuários, 0 fazendas, 0 lotes, 0 propostas…). |
+| **Demo / cheio** | `npm run db:setup:demo` | `db/seed/seed.sql` | Plataforma **+ dados fictícios de usuário** (Rafael, 10 fazendas, 20 lotes, oportunidades, radares, negociação, notificações etc.). Para **dev, CI e demonstração**. |
+
+**Quando usar cada um:**
+
+- **`db:setup` (produção)** — para provisionar um banco novo de produção/staging:
+  a plataforma já sobe com todo o catálogo pronto, mas **sem nenhum dado
+  fictício de usuário**. É o que o app usa no lançamento (o usuário real começa
+  do zero: se cadastra, cria fazenda, anuncia lote…).
+- **`db:setup:demo` (cheio)** — para desenvolver e demonstrar com **todas as
+  telas já navegáveis** (vitrine, mercado, radar, match, negociação, academy,
+  simulador, perfil), reproduzindo o mock (`src/data/mock.ts`) num banco real.
 
 O runner (`src/migrate.ts`, **Node puro, não depende de `psql` no PATH**) aplica,
 em ordem, contra a `DATABASE_URL`:
@@ -55,17 +69,29 @@ em ordem, contra a `DATABASE_URL`:
 1. `db/migrations/000_schema_migrations.sql` (tabela de controle, se existir);
 2. todos os `db/migrations/0NN_*.up.sql` em ordem numérica;
 3. `db/schema/dba_hardening.sql` (idempotente);
-4. `db/seed/seed.sql` (idempotente: `TRUNCATE` + `INSERT`).
+4. o **seed do modo escolhido** (idempotente: `TRUNCATE` + `INSERT`):
+   - **produção** → `db/seed/seed-platform.sql`;
+   - **demo** (`--demo`) → `db/seed/seed.sql`.
 
-As migrations `001..014` **não são idempotentes** (`create type/table`), então o
+O log mostra em qual modo rodou (ex.: `modo: PRODUÇÃO (usuário vazio)`). As
+migrations `001..014` **não são idempotentes** (`create type/table`), então o
 runner registra cada versão aplicada em `schema_migrations` e **pula as já
 aplicadas**. `hardening` e `seed` são idempotentes e rodam sempre (re-executar o
 comando só **re-semeia** os dados).
 
-Para **reconstruir do zero** em dev (dropa e recria o schema `public`):
+> **Os dois seeds fazem `TRUNCATE`** de todas as tabelas populadas antes de
+> inserir. O `seed-platform.sql` trunca tudo e reinsere **apenas** a plataforma
+> — ou seja, rodar o modo produção sobre um banco que tinha dados demo **zera as
+> tabelas de usuário**. Por isso ambos são para **provisionar/re-semear** bancos
+> de dev/staging/produção-nova, não para rodar sobre uma base com usuários reais
+> já em uso.
+
+Para **reconstruir do zero** (dropa e recria o schema `public`) — funciona nos
+dois modos, passando `--reset` depois do `--`:
 
 ```bash
-npm run db:setup -- --reset
+npm run db:setup -- --reset          # produção, do zero
+npm run db:setup:demo -- --reset     # demo/cheio, do zero
 ```
 
 ---

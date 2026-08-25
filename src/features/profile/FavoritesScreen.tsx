@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
-import { Header, LotCard, Ic, VerifiedBadge } from '@/components'
+import { Header, LotCard, Ic, VerifiedBadge, EmptyState } from '@/components'
 
 export function FavoritesScreen({ onBack, onLot, onFarm }: { onBack: () => void; onLot: (id: number) => void; onFarm: (id: number) => void }) {
   const { LOTS, FARMS, OPPORTUNITIES, SAVED_SIMULATIONS, COURSES } = useData()
@@ -8,6 +8,15 @@ export function FavoritesScreen({ onBack, onLot, onFarm }: { onBack: () => void;
   const favLots = LOTS.filter(l => [1, 15, 8].includes(l.id))
   const favFarms = FARMS.filter(f => [1, 4].includes(f.id))
   const favOpportunities = OPPORTUNITIES.filter(o => [1, 6, 3].includes(o.id))
+  const favCourses = COURSES.filter(c => [1, 2].includes(c.id))
+  const emptyMeta: Record<string, { icon: React.ReactNode; title: string; description: string }> = {
+    Lotes: { icon: <Ic.Cart />, title: 'Nenhum lote salvo', description: 'Toque no coração de um lote para guardá-lo aqui.' },
+    Fazendas: { icon: <Ic.Home />, title: 'Nenhuma fazenda seguida', description: 'Siga fazendas para acompanhar os anúncios delas.' },
+    Oportunidades: { icon: <Ic.Bolt />, title: 'Nenhuma oportunidade salva', description: 'As oportunidades que você salvar aparecem aqui.' },
+    Simulações: { icon: <Ic.Calculator />, title: 'Nenhuma simulação salva', description: 'Simule uma operação e salve para consultar depois.' },
+    Conteúdos: { icon: <Ic.Book />, title: 'Nenhum conteúdo salvo', description: 'Salve aulas da Academy para ver aqui.' },
+  }
+  const counts: Record<string, number> = { Lotes: favLots.length, Fazendas: favFarms.length, Oportunidades: favOpportunities.length, Simulações: SAVED_SIMULATIONS.length, Conteúdos: favCourses.length }
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header title="Favoritos" onBack={onBack} />
@@ -17,6 +26,9 @@ export function FavoritesScreen({ onBack, onLot, onFarm }: { onBack: () => void;
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        {counts[tab] === 0 && (
+          <EmptyState icon={emptyMeta[tab].icon} title={emptyMeta[tab].title} description={emptyMeta[tab].description} />
+        )}
         {tab === 'Lotes' && favLots.map(lot => <LotCard key={lot.id} lot={lot} onPress={() => onLot(lot.id)} />)}
         {tab === 'Oportunidades' && favOpportunities.map(opp => {
           const lot = LOTS.find(l => l.id === opp.lotId)!
@@ -55,7 +67,7 @@ export function FavoritesScreen({ onBack, onLot, onFarm }: { onBack: () => void;
             </div>
           </div>
         ))}
-        {tab === 'Conteúdos' && COURSES.filter(c => [1, 2].includes(c.id)).map(c => (
+        {tab === 'Conteúdos' && favCourses.map(c => (
           <div key={c.id} className="bg-bta-surface rounded-2xl border border-bta-border p-4">
             <span className="text-[10px] font-semibold bg-bta-bg text-bta-muted px-2 py-0.5 rounded-full">{c.category}</span>
             <p className="font-display font-semibold text-bta-text text-sm mt-2">{c.title}</p>

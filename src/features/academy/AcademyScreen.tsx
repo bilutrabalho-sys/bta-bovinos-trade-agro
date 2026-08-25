@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
 import type { Tab } from '@/core/navigation'
-import { BTALogo, Chip, Ic, BottomNav } from '@/components'
+import { BTALogo, Chip, Ic, BottomNav, EmptyState } from '@/components'
 
 export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void; onTab: (t: Tab) => void; onLesson: (courseId: number) => void }) {
   const { COURSES } = useData()
@@ -38,6 +38,14 @@ export function AcademyScreen({ onBack, onTab, onLesson }: { onBack: () => void;
             {categories.map(c => <Chip key={c} label={c} active={cat === c} onPress={() => setCat(c)} />)}
           </div>
           <div className="space-y-3">
+            {filtered.length === 0 && (
+              <EmptyState
+                icon={<Ic.Book />}
+                title={COURSES.length === 0 ? 'Conteúdos em breve' : 'Nada nesta categoria ainda'}
+                description={COURSES.length === 0 ? 'Novas aulas da BTA Academy chegam em breve.' : 'Escolha outra categoria para ver mais aulas.'}
+                cta={cat === 'Todos' ? undefined : { label: 'Ver todos', onClick: () => setCat('Todos') }}
+              />
+            )}
             {filtered.map(c => (
               <button key={c.id} onClick={() => onLesson(c.id)} className="w-full bg-bta-surface rounded-2xl border border-bta-border p-4 text-left transition-transform active:scale-[0.98]">
                 <div className="flex items-center justify-between gap-3">

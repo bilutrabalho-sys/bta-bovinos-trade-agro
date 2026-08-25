@@ -1,12 +1,16 @@
 import { useData } from '@/data/DataProvider'
 import type { Screen, Tab } from '@/core/navigation'
-import { Ic, BTALogo, PriceCard, SectionTitle, LotCard, Btn, BottomNav } from '@/components'
+import { Ic, BTALogo, PriceCard, SectionTitle, LotCard, Btn, BottomNav, EmptyState } from '@/components'
 
 export function HomeScreen({ onNavigate, onTab }: {
   onNavigate: (s: Screen, lotId?: number) => void; onTab: (t: Tab) => void
 }) {
   const { NOTIFICATIONS, MARKET_DATA, RADAR_ALERTS, OPPORTUNITIES, LOTS, COURSES } = useData()
   const unread = NOTIFICATIONS.filter(n => !n.read).length
+  const marketEntries = Object.entries(MARKET_DATA)
+  const activeRadar = RADAR_ALERTS.filter(r => r.active)
+  const topLots = LOTS.filter(l => l.score >= 90).slice(0, 3)
+  const topCourses = COURSES.slice(0, 4)
   const actions = [
     { label: 'Comprar gado', icon: <Ic.Cart />, fn: () => onNavigate('buy') },
     { label: 'Vender gado', icon: <Ic.Clipboard />, fn: () => onNavigate('sell') },
@@ -53,20 +57,23 @@ export function HomeScreen({ onNavigate, onTab }: {
           </div>
 
           {/* Mercado hoje */}
+          {marketEntries.length > 0 && (
           <div>
             <SectionTitle action="Ver tudo" onAction={() => onTab('market')}>Mercado hoje</SectionTitle>
             <div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-2">
-              {Object.entries(MARKET_DATA).map(([name, data]) => (
+              {marketEntries.map(([name, data]) => (
                 <PriceCard key={name} name={name} current={data.current} change={data.change} unit={data.unit} onPress={() => onTab('market')} />
               ))}
             </div>
           </div>
+          )}
 
           {/* Radar section */}
           <div>
             <SectionTitle action="Ver radar" onAction={() => onNavigate('radar')}>Seu Radar</SectionTitle>
+            {activeRadar.length > 0 ? (
             <div className="space-y-2">
-              {RADAR_ALERTS.filter(r => r.active).map(r => (
+              {activeRadar.map(r => (
                 <button key={r.id} onClick={() => onNavigate('radar')} className="w-full flex items-center justify-between bg-bta-surface rounded-xl border border-bta-border px-4 py-3 text-left">
                   <div>
                     <p className="font-display font-semibold text-bta-text text-sm">{r.title}</p>
@@ -80,6 +87,17 @@ export function HomeScreen({ onNavigate, onTab }: {
                 </button>
               ))}
             </div>
+            ) : (
+              <div className="bg-bta-surface rounded-2xl border border-bta-border">
+                <EmptyState
+                  compact
+                  icon={<Ic.Radar />}
+                  title="Nenhum alerta ativo"
+                  description="Crie um radar e o BTA avisa quando surgir gado no seu critério."
+                  cta={{ label: 'Criar alerta', onClick: () => onNavigate('radar') }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Match + BTA Check shortcuts */}
@@ -97,20 +115,23 @@ export function HomeScreen({ onNavigate, onTab }: {
           </div>
 
           {/* Opportunities for you */}
+          {topLots.length > 0 && (
           <div>
             <SectionTitle action="Ver todas" onAction={() => onNavigate('opportunities')}>Oportunidades para você</SectionTitle>
             <div className="space-y-3">
-              {LOTS.filter(l => l.score >= 90).slice(0, 3).map(lot => (
+              {topLots.map(lot => (
                 <LotCard key={lot.id} lot={lot} onPress={() => onNavigate('lot-detail', lot.id)} />
               ))}
             </div>
           </div>
+          )}
 
           {/* Continue learning */}
+          {topCourses.length > 0 && (
           <div>
             <SectionTitle action="Ver tudo" onAction={() => onTab('academy')}>Continue aprendendo</SectionTitle>
             <div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-2">
-              {COURSES.slice(0, 4).map(c => (
+              {topCourses.map(c => (
                 <div key={c.id} className="flex-shrink-0 w-52 bg-bta-surface rounded-xl p-4 border border-bta-border card-shadow">
                   <span className="inline-block px-2 py-0.5 bg-bta-bg text-bta-muted text-[10px] font-semibold rounded-full mb-2">{c.category}</span>
                   <p className="font-display font-semibold text-bta-text text-xs leading-tight mb-2">{c.title}</p>
@@ -127,6 +148,7 @@ export function HomeScreen({ onNavigate, onTab }: {
               ))}
             </div>
           </div>
+          )}
 
           {/* Services teaser */}
           <button onClick={() => onNavigate('services')} className="w-full flex items-center gap-3 bg-bta-bg border border-bta-border rounded-2xl p-5 text-left">

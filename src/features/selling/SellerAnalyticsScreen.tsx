@@ -1,6 +1,9 @@
-import { Header, SectionTitle, BTAScore, Ic } from '@/components'
+import { useData } from '@/data/DataProvider'
+import { Header, SectionTitle, BTAScore, Ic, EmptyState } from '@/components'
 
 export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
+  const { LOTS } = useData()
+  const hasListings = LOTS.length > 0
   const funnel = [
     { label: 'Visualizações', value: 211, pct: 100 },
     { label: 'Favoritos', value: 34, pct: 16 },
@@ -11,6 +14,15 @@ export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header title="Analytics" onBack={onBack} />
+      {!hasListings ? (
+        <div className="flex-1 overflow-y-auto px-5">
+          <EmptyState
+            icon={<Ic.Chart />}
+            title="Sem dados de desempenho ainda"
+            description="Cadastre um lote para começar a acompanhar visualizações, favoritos e propostas."
+          />
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
         <div>
           <h1 className="font-display font-black text-bta-text text-xl mb-1" style={{ letterSpacing: '-0.02em' }}>Desempenho dos anúncios</h1>
@@ -51,6 +63,7 @@ export function SellerAnalyticsScreen({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

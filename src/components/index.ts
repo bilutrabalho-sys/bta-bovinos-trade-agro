@@ -13,7 +13,11 @@ export { BTAScore } from './brand/BTAScore'
 
 // Cards de conteúdo
 export { LotCard } from './cards/LotCard'
+export { LotImage } from './cards/LotImage'
 export { PriceCard } from './cards/PriceCard'
+
+// Estado vazio reutilizável
+export { EmptyState } from './EmptyState'
 
 // Navegação (header + bottom nav)
 export { Header } from './navigation/Header'

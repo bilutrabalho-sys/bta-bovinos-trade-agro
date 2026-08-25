@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Lot } from '@/data/mock'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Ic, VerifiedBadge, BTAScore, Btn } from '@/components'
+import { Ic, VerifiedBadge, BTAScore, Btn, LotImage } from '@/components'
 
 // Shares a lot via the native share sheet when available, falling back to
 // copying the summary to the clipboard so the action always does something.
@@ -38,7 +38,7 @@ export function LotDetailScreen({ lotId, onBack, onNavigate, onFarm, onSimulate 
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <div className="relative h-72 bg-bta-primary-10">
-          <img src={lot.images[imgIdx]} alt={lot.title} className="w-full h-full object-cover" />
+          <LotImage src={lot.images[imgIdx]} alt={lot.title} size="lg" />
           <div className="absolute top-12 left-4">
             <button onClick={onBack} className="w-9 h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center card-shadow text-bta-text"><Ic.Back /></button>
           </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Ic, VerifiedBadge, SectionTitle, LotCard, Btn } from '@/components'
+import { Ic, VerifiedBadge, SectionTitle, LotCard, Btn, EmptyState } from '@/components'
 
 export function FarmProfileScreen({ farmId, onBack, onLot, onNavigate }: { farmId: number; onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen, lotId?: number) => void }) {
   const { FARMS, LOTS } = useData()
@@ -42,7 +42,7 @@ export function FarmProfileScreen({ farmId, onBack, onLot, onNavigate }: { farmI
           </div>
           <div><p className="font-display font-bold text-bta-text text-sm mb-2">Sobre</p><p className="text-bta-muted text-sm leading-relaxed">{farm.description}</p><p className="text-bta-muted text-xs mt-2">Na plataforma desde {farm.since}</p></div>
           <div><p className="font-display font-bold text-bta-text text-sm mb-2">Especialidades</p><div className="flex gap-2 flex-wrap">{farm.specialties.map(s => <span key={s} className="bg-bta-primary/10 text-bta-primary text-xs font-display font-semibold px-3 py-1 rounded-full">{s}</span>)}</div></div>
-          <div><SectionTitle>Lotes ativos ({farmLots.length})</SectionTitle><div className="space-y-3">{farmLots.map(lot => <LotCard key={lot.id} lot={lot} onPress={() => onLot(lot.id)} />)}</div></div>
+          <div><SectionTitle>Lotes ativos ({farmLots.length})</SectionTitle>{farmLots.length > 0 ? <div className="space-y-3">{farmLots.map(lot => <LotCard key={lot.id} lot={lot} onPress={() => onLot(lot.id)} />)}</div> : <EmptyState compact icon={<Ic.Cart />} title="Nenhum lote ativo" description="Esta fazenda não tem lotes anunciados no momento." />}</div>
           <div>
             <SectionTitle>Avaliações</SectionTitle>
             <div className="space-y-3">

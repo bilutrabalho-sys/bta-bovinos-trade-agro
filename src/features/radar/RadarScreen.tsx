@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { sounds } from '@/utils/sound'
 import { useData } from '@/data/DataProvider'
-import { Header, Ic } from '@/components'
+import { Header, Ic, EmptyState } from '@/components'
 
 export function RadarScreen({ onBack, onLot }: { onBack: () => void; onLot: (id: number) => void }) {
   const { RADAR_ALERTS, LOTS } = useData()
@@ -39,6 +39,13 @@ export function RadarScreen({ onBack, onLot }: { onBack: () => void; onLot: (id:
             </div>
             <button onClick={() => onLot(3)} className="ml-7 mt-2 text-bta-primary text-xs font-display font-bold">Ver oportunidade →</button>
           </div>
+        )}
+        {alerts.length === 0 && (
+          <EmptyState
+            icon={<Ic.Radar />}
+            title="Nenhum alerta no radar"
+            description="Crie um alerta com seus critérios e o BTA procura o gado por você, 24 horas por dia."
+          />
         )}
         <div className="space-y-3">
           {alerts.map(alert => (

@@ -1,7 +1,7 @@
 import type { Lot } from '@/data/mock'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Header, VerifiedBadge, Ic } from '@/components'
+import { Header, VerifiedBadge, Ic, LotImage, EmptyState } from '@/components'
 
 export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
   lotIds: number[]; onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void
@@ -35,6 +35,16 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header title="Comparador" onBack={onBack} />
+      {lots.length === 0 ? (
+        <div className="flex-1 overflow-y-auto px-5">
+          <EmptyState
+            icon={<Ic.Scale />}
+            title="Nada para comparar"
+            description="Selecione ao menos dois lotes na busca para comparar lado a lado."
+            cta={{ label: 'Voltar para a busca', onClick: onBack }}
+          />
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto">
         {/* Lot headers */}
         <div className="flex border-b border-bta-border bg-bta-surface">
@@ -42,7 +52,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
           {lots.map(l => (
             <button key={l.id} onClick={() => onLot(l.id)} className="flex-1 p-3 text-center border-r border-bta-border last:border-0">
               <div className="h-16 rounded-xl overflow-hidden bg-bta-primary-10 mb-2">
-                <img src={l.image} alt={l.title} className="w-full h-full object-cover" />
+                <LotImage src={l.image} alt={l.title} size="sm" />
               </div>
               <p className="font-display font-bold text-bta-text text-xs leading-tight">{l.title}</p>
               <p className="text-bta-muted text-[10px] mt-0.5">{l.breed}</p>
@@ -82,6 +92,7 @@ export function CompareScreen({ lotIds, onBack, onLot, onNavigate }: {
           </button>
         </div>
       </div>
+      )}
     </div>
   )
 }

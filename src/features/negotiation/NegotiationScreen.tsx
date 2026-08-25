@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Btn, Ic } from '@/components'
+import { Btn, Ic, EmptyState } from '@/components'
 
 export function NegotiationScreen({ lotId, onBack, onNavigate }: { lotId: number; onBack: () => void; onNavigate: (s: Screen) => void }) {
   const { CHAT_MESSAGES, LOTS, FARMS } = useData()
@@ -32,6 +32,13 @@ export function NegotiationScreen({ lotId, onBack, onNavigate }: { lotId: number
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        {msgs.length === 0 && (
+          <EmptyState
+            icon={<Ic.Chat />}
+            title="Comece a conversa"
+            description="Envie uma mensagem para iniciar a negociação com o vendedor."
+          />
+        )}
         {msgs.map(m => (
           <div key={m.id} className={`flex ${m.from === 'buyer' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[78%] flex flex-col gap-0.5 ${m.from === 'buyer' ? 'items-end' : 'items-start'}`}>

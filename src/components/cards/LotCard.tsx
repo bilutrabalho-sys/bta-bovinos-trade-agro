@@ -1,6 +1,7 @@
 import type { Lot } from '@/data/mock'
 import { Ic } from '@/components/foundation/icons'
 import { Btn } from '@/components/foundation/Button'
+import { LotImage } from '@/components/cards/LotImage'
 import { VerifiedBadge } from '@/components/brand/VerifiedBadge'
 import { BTAScore } from '@/components/brand/BTAScore'
 
@@ -42,7 +43,7 @@ export function LotCard({ lot, onPress, showCompare, isComparing, onToggleCompar
       )}
       <Btn sound="tap" onClick={onPress} className="w-full bg-bta-surface rounded-2xl overflow-hidden border border-bta-border text-left card-shadow">
         <div className="relative h-40 bg-bta-primary-10">
-          <img src={lot.image} alt={lot.title} className="w-full h-full object-cover" />
+          <LotImage src={lot.image} alt={lot.title} size="md" />
           <div className="absolute top-3 left-3">{lot.verified && <VerifiedBadge small />}</div>
           <div className="absolute bottom-3 right-3"><BTAScore score={lot.score} size="sm" /></div>
         </div>

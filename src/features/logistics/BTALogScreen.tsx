@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
-import { Header, SectionTitle, VerifiedBadge, Ic, Btn } from '@/components'
+import { Header, SectionTitle, VerifiedBadge, Ic, Btn, EmptyState } from '@/components'
 
 export function BTALogScreen({ lotId, onBack }: { lotId: number; onBack: () => void }) {
   const { TRANSPORTERS, LOTS } = useData()
@@ -43,6 +43,14 @@ export function BTALogScreen({ lotId, onBack }: { lotId: number; onBack: () => v
         {/* Transporters */}
         <div>
           <SectionTitle>Transportadoras disponíveis</SectionTitle>
+          {TRANSPORTERS.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<Ic.Truck />}
+              title="Nenhuma transportadora ainda"
+              description="Ainda não há transportadoras cadastradas para esta rota. Tente novamente em breve."
+            />
+          ) : (
           <div className="space-y-3">
             {TRANSPORTERS.map(t => (
               <button
@@ -76,6 +84,7 @@ export function BTALogScreen({ lotId, onBack }: { lotId: number; onBack: () => v
               </button>
             ))}
           </div>
+          )}
         </div>
       </div>
       <div className="px-5 pb-8 pt-4 bg-bta-surface border-t border-bta-border">

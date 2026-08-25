@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Header, Ic } from '@/components'
+import { Header, Ic, LotImage, EmptyState } from '@/components'
 
 export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavigate: (s: Screen, lotId?: number) => void }) {
   const { LOTS } = useData()
   const [tab, setTab] = useState('Ativos')
   const myLots = LOTS.slice(0, 3).map((l, i) => ({ ...l, proposals: [2, 1, 0][i], views: [148, 63, 12][i], favorites: [24, 8, 2][i], status: ['Ativo', 'Ativo', 'Publicado'][i] }))
+  const tabLots = myLots.filter(l => tab === 'Ativos' ? true : tab === 'Propostas' ? l.proposals > 0 : false)
+  const emptyByTab: Record<string, string> = {
+    Ativos: 'Nenhum anúncio ativo no momento.',
+    Propostas: 'Nenhuma proposta por enquanto.',
+    Vendidos: 'Nenhuma venda concluída ainda.',
+  }
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header title="Vender" onBack={onBack} />
@@ -18,6 +24,15 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
         <button onClick={() => onNavigate('create-listing')} className="w-full btn-primary-grad text-white font-display font-bold text-base py-4 rounded-xl flex items-center justify-center gap-2">
           <Ic.Plus /> Cadastrar lote
         </button>
+        {myLots.length === 0 ? (
+          <EmptyState
+            icon={<Ic.Clipboard />}
+            title="Você ainda não anunciou"
+            description="Cadastre seu primeiro lote e comece a receber propostas de compradores."
+            cta={{ label: 'Cadastrar meu primeiro lote', onClick: () => onNavigate('create-listing') }}
+          />
+        ) : (
+        <>
         <div className="grid grid-cols-3 gap-3">
           {[{ label: 'Anúncios ativos', value: '2' }, { label: 'Propostas', value: '3' }, { label: 'Visualizações', value: '211' }].map(s => (
             <div key={s.label} className="bg-bta-surface rounded-xl border border-bta-border p-3 text-center">
@@ -35,10 +50,12 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
           {['Ativos', 'Propostas', 'Vendidos'].map(t => <button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-lg text-xs font-display font-bold transition-colors ${tab === t ? 'bg-bta-surface text-bta-primary card-shadow' : 'text-bta-muted'}`}>{t}</button>)}
         </div>
         <div className="space-y-3">
-          {myLots.filter(l => tab === 'Ativos' ? true : tab === 'Propostas' ? l.proposals > 0 : false).map(lot => (
+          {tabLots.length === 0 ? (
+            <EmptyState compact icon={<Ic.Clipboard />} title={emptyByTab[tab]} />
+          ) : tabLots.map(lot => (
             <div key={lot.id} className="bg-bta-surface rounded-2xl border border-bta-border overflow-hidden">
               <div className="h-24 relative">
-                <img src={lot.image} alt={lot.title} className="w-full h-full object-cover" />
+                <LotImage src={lot.image} alt={lot.title} size="md" />
                 {lot.proposals > 0 && <div className="absolute top-2 right-2 bg-bta-amber text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{lot.proposals} proposta{lot.proposals > 1 ? 's' : ''}</div>}
               </div>
               <div className="p-3">
@@ -56,6 +73,8 @@ export function SellScreen({ onBack, onNavigate }: { onBack: () => void; onNavig
             </div>
           ))}
         </div>
+        </>
+        )}
       </div>
     </div>
   )

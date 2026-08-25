@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useData } from '@/data/DataProvider'
 import type { Screen } from '@/core/navigation'
-import { Header, SectionTitle, VerifiedBadge, Ic } from '@/components'
+import { Header, SectionTitle, VerifiedBadge, Ic, EmptyState } from '@/components'
 
 export function BTAMatchScreen({ onBack, onLot, onNavigate }: { onBack: () => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void }) {
   const { MATCH_RESULTS, LOTS } = useData()
@@ -27,7 +27,15 @@ export function BTAMatchScreen({ onBack, onLot, onNavigate }: { onBack: () => vo
           </div>
           <button onClick={() => setSearched(true)} className="w-full mt-4 bg-bta-primary text-white font-display font-bold text-sm py-3 rounded-xl transition-opacity active:opacity-80">Encontrar compatíveis</button>
         </div>
-        {searched && (
+        {searched && MATCH_RESULTS.length === 0 && (
+          <EmptyState
+            icon={<Ic.Target />}
+            title="Nenhum lote compatível ainda"
+            description="Não encontramos gado com esses critérios agora. Ajuste a busca ou crie um Radar para ser avisado."
+            cta={{ label: 'Criar Radar', onClick: () => onNavigate('radar') }}
+          />
+        )}
+        {searched && MATCH_RESULTS.length > 0 && (
           <div>
             <SectionTitle>{MATCH_RESULTS.length} lotes compatíveis encontrados</SectionTitle>
             <div className="space-y-3">

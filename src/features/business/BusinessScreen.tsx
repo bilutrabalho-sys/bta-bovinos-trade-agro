@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useData } from '@/data/DataProvider'
 import type { Screen, Tab } from '@/core/navigation'
-import { BTALogo, Ic, SectionTitle, BottomNav } from '@/components'
+import { BTALogo, Ic, SectionTitle, BottomNav, EmptyState } from '@/components'
 
 export function BusinessScreen({ onTab, onLot, onNavigate }: {
   onTab: (t: Tab) => void; onLot: (id: number) => void; onNavigate: (s: Screen) => void
@@ -85,6 +85,15 @@ export function BusinessScreen({ onTab, onLot, onNavigate }: {
           {/* Saved simulations */}
           <div>
             <SectionTitle action="Nova simulação" onAction={() => onNavigate('simulator')}>Simulações salvas</SectionTitle>
+            {SAVED_SIMULATIONS.length === 0 ? (
+              <EmptyState
+                compact
+                icon={<Ic.Calculator />}
+                title="Nenhuma simulação salva"
+                description="Simule uma operação e salve os cenários para acompanhar aqui."
+                cta={{ label: 'Nova simulação', onClick: () => onNavigate('simulator') }}
+              />
+            ) : (
             <div className="space-y-2">
               {SAVED_SIMULATIONS.map(s => (
                 <div key={s.id} className="flex items-center justify-between bg-bta-surface rounded-xl border border-bta-border px-4 py-3">
@@ -99,6 +108,7 @@ export function BusinessScreen({ onTab, onLot, onNavigate }: {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* Operations */}
