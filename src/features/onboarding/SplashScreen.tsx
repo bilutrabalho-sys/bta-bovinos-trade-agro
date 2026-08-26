@@ -14,12 +14,11 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    // Tempo suficiente para o boi respirar ~1 ciclo antes de avançar.
-    const t = setTimeout(onDone, REDUCED_MOTION ? 2600 : 4200)
-    // Alguns WebViews Android precisam de um empurrão para dar autoplay.
+    // Sem timer automático: a splash fica em loop (o boi respirando) e só
+    // avança quando o usuário toca. Aqui apenas garantimos o autoplay em
+    // WebViews Android que precisam de um empurrão para iniciar o vídeo.
     videoRef.current?.play().catch(() => {})
-    return () => clearTimeout(t)
-  }, [onDone])
+  }, [])
 
   return (
     <div className="flex-1 relative overflow-hidden bg-black">
@@ -46,9 +45,9 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
       {/* Toque em qualquer lugar para entrar (também dá acessibilidade) */}
       <button onClick={onDone} aria-label="Entrar no BTA" className="absolute inset-0" />
 
-      {/* Dica sutil na base */}
-      <div className="absolute inset-x-0 bottom-7 flex justify-center pointer-events-none">
-        <span className="text-white/55 text-[11px] font-display font-medium tracking-wide animate-pulse">
+      {/* Chamada para ação: a splash NÃO avança sozinha — só ao tocar. */}
+      <div className="absolute inset-x-0 bottom-10 flex justify-center pointer-events-none">
+        <span className="px-6 py-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-display font-semibold tracking-wide animate-pulse">
           Toque para entrar
         </span>
       </div>
