@@ -34,6 +34,10 @@ export const GRADING_RANGES: Record<string, [number, number]> = {
   whites: [-1, 1],
 }
 
+// 'linear' é a única curva realmente neutra (identidade) para valores já em
+// [0,1] — 'acesFilmic'/'reinhard' comprimem mesmo tons médios, o que
+// quebraria a garantia de NEUTRAL_GRADING ser um no-op (mesmo bug corrigido
+// no lado Dart, ver test/visual_engine_grading_test.dart no vrm_project).
 export const NEUTRAL_GRADING: GradingParams = {
   exposure: 0,
   contrast: 1,
@@ -44,7 +48,7 @@ export const NEUTRAL_GRADING: GradingParams = {
   shadows: 0,
   blacks: 0,
   whites: 0,
-  toneMapCurve: 'acesFilmic',
+  toneMapCurve: 'linear',
 }
 
 function clamp(value: number, [min, max]: [number, number]): number {
