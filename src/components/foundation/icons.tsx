@@ -274,4 +274,102 @@ export const Ic = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 17l4-4a1.5 1.5 0 012 0l3.5 3.5M13 15l2-2a1.5 1.5 0 012 0l3 3" />
     </svg>
   ),
+
+  // ─── Insumos / Vet / Usados (adaptação dos emojis do Figma p/ SVG) ──────────
+  Syringe: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 2l4 4M17 3l4 4M20 7l-9.5 9.5a2 2 0 01-1 .55l-3.2.8.8-3.2a2 2 0 01.55-1L17 4M8.5 12.5l3 3M3 21l3.5-3.5" />
+    </svg>
+  ),
+  Pill: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 20.5l10-10a4.95 4.95 0 00-7-7l-10 10a4.95 4.95 0 007 7zM7 7l10 10" />
+    </svg>
+  ),
+  Grain: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 22V8M12 8c0-2 1.4-3.4 3.4-3.4 0 2-1.4 3.4-3.4 3.4zM12 8c0-2-1.4-3.4-3.4-3.4 0 2 1.4 3.4 3.4 3.4zM12 13c0-2 1.4-3.4 3.4-3.4 0 2-1.4 3.4-3.4 3.4zM12 13c0-2-1.4-3.4-3.4-3.4 0 2 1.4 3.4 3.4 3.4z" />
+    </svg>
+  ),
+  Cow: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6c0 2 1.1 3 2.6 3M20 6c0 2-1.1 3-2.6 3M6.6 9C5 9 4 10.6 4 12.6 4 16.1 7.6 19 12 19s8-2.9 8-6.4c0-2-1-3.6-2.6-3.6M9.2 13h.01M14.8 13h.01M10 16.2c.6.4 1.3.6 2 .6s1.4-.2 2-.6" />
+    </svg>
+  ),
+  Calendar: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 3v3M17 3v3M4 8.5h16M6 5.5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2v-11a2 2 0 012-2z" />
+    </svg>
+  ),
+  Clock: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5V12l3 2" />
+    </svg>
+  ),
+  Thermometer: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 14.76V5a2 2 0 00-4 0v9.76a4 4 0 104 0zM12 9v6.2" />
+    </svg>
+  ),
+  Scissors: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="6" cy="18" r="2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.1 7.6L20 16M8.1 16.4L20 8M8.4 8.4L13 11.2" />
+    </svg>
+  ),
+  Camera: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
+      <circle cx="12" cy="13" r="3.2" />
+    </svg>
+  ),
+  Phone: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.02-.24 11.4 11.4 0 003.57.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.24.2 2.45.57 3.57a1 1 0 01-.24 1.02l-2.2 2.2z" />
+    </svg>
+  ),
+  Microscope: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 21h12M9 21v-2M9 19a6 6 0 006-6M11.5 3.5l4 4-2.6 2.6-4-4zM8.9 9.9l3 3-1.4 1.4a2.1 2.1 0 01-3-3zM14.5 7.5l1.6 1.6" />
+    </svg>
+  ),
+  Video: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a1 1 0 011-1h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7zM14 10l6-3.2v10.4L14 14" />
+    </svg>
+  ),
+  GraduationCap: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4L2 9l10 5 10-5-10-5zM5 11v4c0 1.5 3.1 3 7 3s7-1.5 7-3v-4M21 9v5" />
+    </svg>
+  ),
+  Package: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l8 4v10l-8 4-8-4V7l8-4zM4 7l8 4 8-4M12 11v10" />
+    </svg>
+  ),
+  Bookmark: ({ className = 'w-5 h-5', filled }: { className?: string; filled?: boolean }) => (
+    <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 4h10a1 1 0 011 1v16l-6-4-6 4V5a1 1 0 011-1z" />
+    </svg>
+  ),
+  Bulb: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 18h5M10 21h4M8 13.5A5.5 5.5 0 1116 9a5.5 5.5 0 01-1.9 4.1 3 3 0 00-1.1 2.3V16h-3v-.6a3 3 0 00-1.1-2.3z" />
+    </svg>
+  ),
+  Hospital: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 21V7l8-4 8 4v14M3.5 21h17M9.5 21v-4h5v4M12 8v4M10 10h4" />
+    </svg>
+  ),
+  Tractor: ({ className = 'w-5 h-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <circle cx="7" cy="16.5" r="3.5" />
+      <circle cx="18" cy="17.5" r="2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 13V8h4.2l1.8 4h3.5M11 8V5.2h4M15.8 12l1.2 5" />
+    </svg>
+  ),
 }

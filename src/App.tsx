@@ -36,6 +36,14 @@ import { ProfileScreen } from './features/profile/ProfileScreen'
 import { BTAProScreen } from './features/profile/BTAProScreen'
 import { FavoritesScreen } from './features/profile/FavoritesScreen'
 import { NotificationsScreen } from './features/profile/NotificationsScreen'
+// Fusão VetAgro — insumos, veterinários, usados e vídeos técnicos
+import {
+  InsumosHubScreen, InsumosMarketplaceScreen, InsumosEstoqueScreen,
+  InsumosColetivaScreen, InsumosAlertasScreen, InsumosRelatoriosScreen,
+} from './features/insumos/InsumosScreens'
+import { VetConnectScreen, VetProfileScreen, VetScheduleScreen } from './features/vet/VetConnectScreens'
+import { UsadosFeedScreen, UsadoDetailScreen } from './features/usados/UsadosScreens'
+import { VetVideoFeedScreen } from './features/videos/VetVideoScreen'
 
 // ─── Main App ───────────────────────────────────────────────────────────────
 export default function App() {
@@ -54,6 +62,10 @@ export default function App() {
   const [preFillLotId, setPreFillLotId] = useState<number | null>(null)
   const [buyFilters, setBuyFilters] = useState<BuyFilters | null>(null)
   const [selectedCourseId, setSelectedCourseId] = useState<number>(1)
+  // Fusão VetAgro: seleção de veterinário/anúncio + dica contextual da tela de vets
+  const [selectedVetId, setSelectedVetId] = useState<string>('vt1')
+  const [selectedUsadoId, setSelectedUsadoId] = useState<string>('u1')
+  const [vetContext, setVetContext] = useState<string | undefined>(undefined)
 
   const navigate = (s: Screen, lotId?: number, farmId?: number) => {
     setHistory(prev => [...prev, screen])
@@ -65,7 +77,7 @@ export default function App() {
     if (history.length > 0) { setScreen(history[history.length - 1]); setHistory(prev => prev.slice(0, -1)) }
   }
   const goTab = (tab: Tab) => {
-    setActiveTab(tab); setHistory([])
+    setActiveTab(tab); setHistory([]); setVetContext(undefined)
     const screenMap: Record<Tab, Screen> = { home: 'home', market: 'market', academy: 'academy', business: 'business', profile: 'profile' }
     setScreen(screenMap[tab])
   }
@@ -75,6 +87,11 @@ export default function App() {
   const navigateSimulatorWithLot = (lotId: number) => { setPreFillLotId(lotId); navigate('simulator') }
   const navigateResults = (filters: BuyFilters) => { setBuyFilters(filters); navigate('results') }
   const navigateLesson = (courseId: number) => { setSelectedCourseId(courseId); navigate('lesson') }
+  // ─── Fusão VetAgro: navegação ──────────────────────────────────────────────
+  const goVetConnect = (context?: string) => { setVetContext(context); navigate('vet-connect') }
+  const navigateVet = (id: string) => { setSelectedVetId(id); navigate('vet-profile') }
+  const navigateVetSchedule = (id: string) => { setSelectedVetId(id); navigate('vet-schedule') }
+  const navigateUsado = (id: string) => { setSelectedUsadoId(id); navigate('usado-detail') }
 
   // ─── Autenticação: gate + navegação para login/cadastro ────────────────────
   // goAuth lembra a tela de origem só ao ENTRAR no fluxo (persiste ao alternar
@@ -136,6 +153,19 @@ export default function App() {
       case 'favorites': return <FavoritesScreen onBack={back} onLot={navigateLot} onFarm={navigateFarm} />
       case 'bta-pro': return <BTAProScreen onBack={back} />
       case 'seller-analytics': return <SellerAnalyticsScreen onBack={back} />
+      // ─── Fusão VetAgro ──────────────────────────────────────────────────────
+      case 'insumos': return <InsumosHubScreen onNavigate={(s) => s === 'vet-connect' ? goVetConnect() : navigate(s)} onBack={back} />
+      case 'insumos-marketplace': return <InsumosMarketplaceScreen onBack={back} onFindVet={(p) => goVetConnect(`Comprando "${p}"? Encontre um veterinário qualificado para aplicar com segurança.`)} />
+      case 'insumos-estoque': return <InsumosEstoqueScreen onBack={back} />
+      case 'insumos-coletiva': return <InsumosColetivaScreen onBack={back} />
+      case 'insumos-alertas': return <InsumosAlertasScreen onBack={back} />
+      case 'insumos-relatorios': return <InsumosRelatoriosScreen onBack={back} />
+      case 'vet-connect': return <VetConnectScreen onBack={back} onVet={navigateVet} context={vetContext} />
+      case 'vet-profile': return <VetProfileScreen vetId={selectedVetId} onBack={back} onSchedule={navigateVetSchedule} />
+      case 'vet-schedule': return <VetScheduleScreen vetId={selectedVetId} onBack={back} onDone={() => goTab('home')} />
+      case 'usados': return <UsadosFeedScreen onBack={back} onDetail={navigateUsado} />
+      case 'usado-detail': return <UsadoDetailScreen listingId={selectedUsadoId} onBack={back} />
+      case 'video-feed': return <VetVideoFeedScreen onBack={back} onFindVet={() => goVetConnect('Veja um veterinário próximo para realizar este procedimento com segurança.')} />
       case 'login': return <LoginScreen message={loginMessage} onSuccess={leaveAuth} onRegister={() => goAuth('register')} onBack={leaveAuth} />
       case 'register': return <RegisterScreen message={loginMessage} onSuccess={leaveAuth} onLogin={() => goAuth('login')} onBack={leaveAuth} />
       default: return <HomeScreen onNavigate={navigate} onTab={goTab} />

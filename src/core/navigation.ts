@@ -7,6 +7,12 @@ export type Screen =
   | 'opportunities' | 'compare' | 'deal-closed' | 'bta-log'
   | 'lesson' | 'bta-path' | 'services' | 'favorites' | 'bta-pro'
   | 'seller-analytics' | 'login' | 'register'
+  // Fusão VetAgro — insumos, veterinários, usados e vídeos técnicos
+  | 'insumos' | 'insumos-marketplace' | 'insumos-estoque' | 'insumos-coletiva'
+  | 'insumos-alertas' | 'insumos-relatorios'
+  | 'vet-connect' | 'vet-profile' | 'vet-schedule'
+  | 'usados' | 'usado-detail'
+  | 'video-feed'
 
 export type Tab = 'home' | 'market' | 'academy' | 'business' | 'profile'
 
