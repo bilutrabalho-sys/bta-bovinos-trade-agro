@@ -52,7 +52,15 @@ truncate table
   user_lesson_progress,
   simulations,
   notifications, favorites, follows,
-  subscription_plans, subscriptions, lot_boosts, services, platform_settings
+  subscription_plans, subscriptions, lot_boosts, services, platform_settings,
+  -- SEÇÃO 15 (novos domínios: insumos, vet, usados, vídeos) — as 26 tabelas novas.
+  -- Ordem não importa no TRUNCATE (CASCADE cobre as dependências).
+  insumo_category, insumo_product, insumo_product_tag, supplier, supplier_offer,
+  farm_stock_item, group_buy, group_buy_participation, price_alert, insumo_purchase,
+  vet, vet_specialty, vet_certification, vet_service, vet_availability_day,
+  vet_appointment, vet_review,
+  used_category, used_listing, used_saved, used_contact,
+  video_category, vet_video, video_like, video_save, vet_follow
 restart identity cascade;
 
 
@@ -573,11 +581,424 @@ insert into platform_settings (key, value, description) values
 
 
 -- ============================================================================
---  11. RESSINCRONIZAÇÃO DE SEQUENCES
+--  11. NOVOS DOMÍNIOS (SEÇÃO 15) — INSUMOS, VET, USADOS, VÍDEOS
+-- ----------------------------------------------------------------------------
+--  Reproduz o mock das 4 telas novas. TODAS as FKs são resolvidas por CHAVE
+--  NATURAL (slug de categoria, name de supplier/vet, title de produto/vídeo/
+--  anúncio) — NENHUM id é forçado aqui, então NÃO há setval para estas tabelas
+--  (ids auto de identity avançam sozinhos). Classificação:
+--    * CATÁLOGO (vai também no seed-platform): insumo_category/product/tag,
+--      supplier/offer, group_buy, used_category, video_category, vet_video,
+--      vet + filhas de exibição. Vets seedados têm owner_user_id = NULL (admin).
+--    * DADO PRIVADO do user 1 (Rafael) — SÓ AQUI: estoque, participação, alertas,
+--      compras, agendamento, review, salvos/contato, like/save/follow.
+--
+--  ⚠️ INTERAÇÃO COM OS TRIGGERS DE CONTADOR (migration 022 / schema 15.i):
+--  inserir filhas (group_buy_participation, vet_review, video_like, video_save)
+--  dispara triggers SECURITY DEFINER que BUMPAM os contadores de group_buy/vet/
+--  vet_video ALÉM do valor do mock (que já representa muitos usuários). Por isso,
+--  no FIM desta seção (subseção "contadores autoritativos"), fixamos os contadores
+--  nos valores do mock/contagem real com UPDATEs explícitos — tornando o seed
+--  AUTORITATIVO e idempotente, independente do efeito dos triggers.
+-- ============================================================================
+
+-- ---- 11.1 INSUMOS · catálogo -----------------------------------------------
+-- insumo_category (CATEGORIAS). product_count é fixado no fim (11.9) = contagem
+-- real de insumo_product por categoria (não o count do mock, que é do catálogo cheio).
+insert into insumo_category (slug, label, color, icon) values
+  ('vacinas',      'Vacinas',      '#1565C0', 'syringe'),
+  ('medicamentos', 'Medicamentos', '#6A1B9A', 'pill'),
+  ('racao',        'Ração',        '#795548', 'grain'),
+  ('suplementos',  'Suplementos',  '#E65100', 'flask'),
+  ('equipamentos', 'Equipamentos', '#123B2A', 'wrench'),
+  ('defensivos',   'Defensivos',   '#C94A45', 'shield');
+
+-- insumo_product (PRODUTOS). cold_chain=frio, temp_range=tempRange. cat via slug.
+insert into insumo_product (category_id, name, cold_chain, temp_range)
+select ic.id, v.name, v.cold_chain, v.temp_range
+from (values
+  ('vacinas',      'Vacina Febre Aftosa (100 doses)',           true,  '2°C–8°C'),
+  ('medicamentos', 'Ivermectina 1% Injetável (500ml)',          false, null),
+  ('racao',        'Ração Bovinos Confinamento 23% (sc 40kg)',  false, null),
+  ('suplementos',  'Sal Mineral Bovinos Corte (30kg)',          false, null)
+) as v(cat_slug, name, cold_chain, temp_range)
+join insumo_category ic on ic.slug = v.cat_slug;
+
+-- insumo_product_tag (tags[]). product via name.
+insert into insumo_product_tag (product_id, tag)
+select p.id, v.tag
+from (values
+  ('Vacina Febre Aftosa (100 doses)',          'FMD'),
+  ('Vacina Febre Aftosa (100 doses)',          'Obrigatória'),
+  ('Vacina Febre Aftosa (100 doses)',          'Refrigerado'),
+  ('Ivermectina 1% Injetável (500ml)',         'Antiparasitário'),
+  ('Ivermectina 1% Injetável (500ml)',         'Endectocida'),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Alto Proteína'),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Confinamento'),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Fase Recria'),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Suplementação')
+) as v(prod_name, tag)
+join insumo_product p on p.name = v.prod_name;
+
+-- supplier (fornecedores distintos do mock; dedup por nome — todos únicos).
+insert into supplier (name) values
+  ('Boehringer BR'), ('Vetcamp Sul'), ('AgroVet SP'),
+  ('Zoetis Distribuidora'), ('MSD Animal Health'), ('CentraVet'),
+  ('Purina Agroshop'), ('Guabi Distribuidora'), ('Cargill Feed'),
+  ('Tortuga Distribuidora'), ('Provimi BR');
+
+-- supplier_offer (oferta por produto×fornecedor). preco/frete/prazo/rating/estoque.
+insert into supplier_offer (product_id, supplier_id, preco, frete, prazo_dias, rating, estoque)
+select p.id, s.id, v.preco, v.frete, v.prazo, v.rating, v.estoque
+from (values
+  ('Vacina Febre Aftosa (100 doses)',          'Boehringer BR',        187.50,  0, 3, 4.9,  500),
+  ('Vacina Febre Aftosa (100 doses)',          'Vetcamp Sul',          194.00, 15, 5, 4.7,  200),
+  ('Vacina Febre Aftosa (100 doses)',          'AgroVet SP',           201.00,  0, 4, 4.6,  350),
+  ('Ivermectina 1% Injetável (500ml)',         'Zoetis Distribuidora',  89.90,  0, 3, 5.0, 1200),
+  ('Ivermectina 1% Injetável (500ml)',         'MSD Animal Health',     94.50,  0, 4, 4.8,  800),
+  ('Ivermectina 1% Injetável (500ml)',         'CentraVet',             98.00, 18, 6, 4.5,  150),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Purina Agroshop',      142.00, 35, 5, 4.8, 5000),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Guabi Distribuidora',  138.50, 40, 7, 4.6, 3000),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Cargill Feed',         135.00, 50, 8, 4.9, 8000),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Tortuga Distribuidora', 98.50, 20, 4, 4.9, 2000),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Provimi BR',           102.00, 15, 5, 4.7, 1500)
+) as v(prod_name, sup_name, preco, frete, prazo, rating, estoque)
+join insumo_product p on p.name = v.prod_name
+join supplier s on s.name = v.sup_name;
+
+-- group_buy (COLETIVAS — catálogo/plataforma). qty_current/participants_count são
+-- os do mock e serão FIXADOS no fim (11.9) após o trigger da adesão do user 1.
+insert into group_buy (category_id, title, unit, qty_meta, qty_current, participants_count, deadline, preco_base, preco_grupo, regiao, status)
+select ic.id, v.title, v.unit, v.qty_meta, v.qty_current, v.participants, v.deadline::date, v.preco_base, v.preco_grupo, v.regiao, 'open'::group_buy_status
+from (values
+  ('vacinas',      'Vacina Febre Aftosa 100d', 'doses',   5000, 3800, 28, '2026-09-05',   2.05,   1.62, 'Triângulo Mineiro/MG'),
+  ('racao',        'Ração Confinamento 23%',   'sacos',    800,  610, 14, '2026-09-10', 138.50, 112.00, 'São Paulo Noroeste/SP'),
+  ('medicamentos', 'Ivermectina 1% 500ml',     'frascos',  300,  218, 19, '2026-09-15',  94.50,  76.80, 'Sul do Mato Grosso/MT')
+) as v(cat_slug, title, unit, qty_meta, qty_current, participants, deadline, preco_base, preco_grupo, regiao)
+join insumo_category ic on ic.slug = v.cat_slug;
+
+-- ---- 11.2 INSUMOS · dado privado do user 1 (Rafael) ------------------------
+-- farm_stock_item (ESTOQUE). farm_id NULL (Rafael é comprador, sem fazenda).
+-- category via slug; product_id NULL (o mock guarda só string do produto).
+insert into farm_stock_item (user_id, farm_id, product_id, category_id, name, quantity, unit, min_quantity, lote, validade, local, temperatura, unit_price)
+select 1, null, null, ic.id, v.name, v.qtd, v.un, v.min_q, v.lote, v.validade::date, v.local, v.temp, v.preco
+from (values
+  ('vacinas',      'Vacina Febre Aftosa', 180, 'doses',  200, 'FAF-2026-04', '2026-12-15', 'Câmara Fria A',   4.2,   1.88),
+  ('medicamentos', 'Ivermectina 1%',       12, 'frascos', 15, 'IVE-2025-11', '2026-09-30', 'Depósito Central', null, 89.90),
+  ('racao',        'Ração Confinamento',   85, 'sacos',    50, 'RAC-2026-08', '2027-02-10', 'Armazém 1',       null, 135.00),
+  ('suplementos',  'Sal Mineral',          22, 'sacos',    30, 'SAL-2026-07', '2027-06-30', 'Armazém 2',       null,  98.50),
+  ('vacinas',      'Vacina Brucelose',     50, 'doses',   100, 'BRU-2026-03', '2026-09-05', 'Câmara Fria B',    3.8,   2.10)
+) as v(cat_slug, name, qtd, un, min_q, lote, validade, local, temp, preco)
+join insumo_category ic on ic.slug = v.cat_slug;
+
+-- group_buy_participation: 1 adesão do user 1 (na campanha de aftosa). O trigger
+-- bumpa group_buy — corrigido no fim (11.9).
+insert into group_buy_participation (group_buy_id, user_id, farm_id, quantity)
+select g.id, 1, null, 200
+from group_buy g where g.title = 'Vacina Febre Aftosa 100d';
+
+-- price_alert (ALERTAS) do user 1. product_id NULL (nome livre, como no mock).
+insert into price_alert (user_id, product_name, target_price, current_price, active, reached) values
+  (1, 'Ivermectina 1% 500ml',       85.00,  89.90, true, false),
+  (1, 'Ração Confinamento sc 40kg', 132.00, 135.00, true, false),
+  (1, 'Vacina Febre Aftosa (d)',     1.75,   1.72, true, true);
+
+-- insumo_purchase (base dos GASTOS_MENSAIS): 1 lançamento por (mês, categoria).
+-- Relatório é AGREGADO por query (sum por categoria/mês); não guardamos totais
+-- prontos. 'outros' não tem categoria no catálogo -> category_id NULL. user 1.
+insert into insumo_purchase (user_id, farm_id, category_id, description, total_amount, purchased_at)
+select 1, null, ic.id,
+       'Compra de insumos — ' || v.cat_label || ' (' || v.mes || '/2026)',
+       v.amount, v.dt::date
+from (values
+  ('Mar','2026-03-15','vacinas','Vacinas',           3200), ('Mar','2026-03-15','medicamentos','Medicamentos', 1800),
+  ('Mar','2026-03-15','racao','Ração',                9500), ('Mar','2026-03-15','suplementos','Suplementos',    2200),
+  ('Mar','2026-03-15','outros','Outros',               800),
+  ('Abr','2026-04-15','vacinas','Vacinas',           1400), ('Abr','2026-04-15','medicamentos','Medicamentos', 2100),
+  ('Abr','2026-04-15','racao','Ração',                9800), ('Abr','2026-04-15','suplementos','Suplementos',    2100),
+  ('Abr','2026-04-15','outros','Outros',               650),
+  ('Mai','2026-05-15','vacinas','Vacinas',           4800), ('Mai','2026-05-15','medicamentos','Medicamentos', 1500),
+  ('Mai','2026-05-15','racao','Ração',               10200), ('Mai','2026-05-15','suplementos','Suplementos',    2300),
+  ('Mai','2026-05-15','outros','Outros',               700),
+  ('Jun','2026-06-15','vacinas','Vacinas',           1200), ('Jun','2026-06-15','medicamentos','Medicamentos', 2400),
+  ('Jun','2026-06-15','racao','Ração',                9600), ('Jun','2026-06-15','suplementos','Suplementos',    2000),
+  ('Jun','2026-06-15','outros','Outros',               750),
+  ('Jul','2026-07-15','vacinas','Vacinas',           1600), ('Jul','2026-07-15','medicamentos','Medicamentos', 1900),
+  ('Jul','2026-07-15','racao','Ração',               10500), ('Jul','2026-07-15','suplementos','Suplementos',    2400),
+  ('Jul','2026-07-15','outros','Outros',               850),
+  ('Ago','2026-08-15','vacinas','Vacinas',           5890), ('Ago','2026-08-15','medicamentos','Medicamentos', 2200),
+  ('Ago','2026-08-15','racao','Ração',               11000), ('Ago','2026-08-15','suplementos','Suplementos',    2500),
+  ('Ago','2026-08-15','outros','Outros',               900)
+) as v(mes, dt, cat_slug, cat_label, amount)
+left join insumo_category ic on ic.slug = v.cat_slug;
+
+-- ---- 11.3 VET · catálogo (vet + filhas de exibição) ------------------------
+-- vet (VETS — 4). owner_user_id NULL (admin-curados). reviews_count = mock; será
+-- FIXADO no fim (11.9) após o trigger das reviews.
+insert into vet (owner_user_id, name, kind, kind_label, verified, city, uf, distance, rating, reviews_count, years_experience, formacao, photo_url, cover_url, price_label, availability, response_time, about)
+select null::bigint, v.name, v.kind::vet_kind, v.kind_label, v.verified, v.city, v.uf, v.distance, v.rating, v.reviews_count, v.years, v.formacao, v.foto, v.capa, v.price_label, v.availability::vet_availability, v.resposta, v.about
+from (values
+  ('Dr. Carlos Mendes', 'vet', 'Verificado', true, 'Rondonópolis', 'MT', 12, 4.9, 127, 15,
+   'UFMT — Medicina Veterinária (2011)',
+   'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1516467508483-a7212febe31a?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 250', 'hoje', 'Responde em ~15min',
+   'Médico veterinário com 15 anos de experiência em pecuária de corte e leite. Especialista em vacinação em grande escala, cirurgia de rúmen e reprodução animal. Atendo Rondonópolis e região num raio de 100km, com equipamento próprio para manejo no curral do cliente.'),
+  ('VetAgro Clínica — Dr. João Silva', 'clinica', 'Clínica Veterinária', true, 'Rondonópolis', 'MT', 8, 4.7, 89, 12,
+   'Clínica com estrutura completa de manejo',
+   'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1583911860205-72f8ac8ddcbe?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 180', 'hoje', 'Aberto agora (24h)',
+   'Clínica veterinária com curral para manejo, raio-X e laboratório de exames próprio. Atendimento de emergência 24 horas e equipe multidisciplinar para grandes rebanhos.'),
+  ('Téc. Maria Souza', 'tecnico', 'Técnica em Pecuária', true, 'Campo Verde', 'MT', 35, 4.6, 54, 8,
+   'Senar — Técnico em Pecuária (2018)',
+   'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=600&h=300&fit=crop&auto=format',
+   'Vacinação R$ 8/cab', 'amanha', 'Responde em ~1h',
+   'Técnica em pecuária especializada em vacinação, inseminação e manejo de curral. Atendimento ágil e preço acessível para pequenos e médios produtores da região de Campo Verde.'),
+  ('Dra. Ana Paula Costa', 'vet', 'Verificada', true, 'Rondonópolis', 'MT', 18, 5.0, 43, 10,
+   'USP — Medicina Veterinária (2015)',
+   'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1444858291040-58f756a3bdd6?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 300', 'lotado', 'Próxima agenda em 5 dias',
+   'Especialista em reprodução animal e ultrassonografia bovina. Credenciada pelo MAPA como inseminadora, com foco em protocolos IATF de alta taxa de prenhez.')
+) as v(name, kind, kind_label, verified, city, uf, distance, rating, reviews_count, years, formacao, foto, capa, price_label, availability, resposta, about);
+
+-- vet_specialty (especialidades[]). vet via name.
+insert into vet_specialty (vet_id, specialty)
+select vt.id, v.specialty
+from (values
+  ('Dr. Carlos Mendes','Vacinação'), ('Dr. Carlos Mendes','Cirurgia'), ('Dr. Carlos Mendes','Medicina Bovina'),
+  ('VetAgro Clínica — Dr. João Silva','Vacinação'), ('VetAgro Clínica — Dr. João Silva','Emergência 24h'), ('VetAgro Clínica — Dr. João Silva','Exames'),
+  ('Téc. Maria Souza','Vacinação'), ('Téc. Maria Souza','Inseminação'), ('Téc. Maria Souza','Manejo'),
+  ('Dra. Ana Paula Costa','Reprodução'), ('Dra. Ana Paula Costa','Ultrassom'), ('Dra. Ana Paula Costa','IATF')
+) as v(vet_name, specialty)
+join vet vt on vt.name = v.vet_name;
+
+-- vet_certification (certificacoes). title/institution/year_label/icon/position.
+insert into vet_certification (vet_id, position, title, institution, year_label, icon)
+select vt.id, v.position, v.title, v.institution, v.year_label, v.icon
+from (values
+  ('Dr. Carlos Mendes', 0, 'Medicina Veterinária', 'UFMT — Univ. Federal de Mato Grosso', '2011', 'grad'),
+  ('Dr. Carlos Mendes', 1, 'Especialização em Medicina Bovina', 'USP — Univ. de São Paulo', '2014', 'trophy'),
+  ('Dr. Carlos Mendes', 2, 'Cirurgia de Rúmen', 'ABMV', 'válido até 2028', 'cert'),
+  ('Dr. Carlos Mendes', 3, 'MAPA — Inseminador Credenciado', 'Reg. 12345/2015', 'ativo', 'check'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Registro de Clínica Veterinária', 'CRMV-MT', 'ativo', 'hospital'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Laboratório credenciado', 'MAPA', '2023', 'lab'),
+  ('Téc. Maria Souza', 0, 'Técnico em Pecuária', 'Senar', '2018', 'grad'),
+  ('Téc. Maria Souza', 1, 'Curso de Inseminação Artificial', 'Embrapa', '2020', 'cert'),
+  ('Dra. Ana Paula Costa', 0, 'Medicina Veterinária', 'USP', '2015', 'grad'),
+  ('Dra. Ana Paula Costa', 1, 'Especialista em Reprodução Animal', 'Unesp', '2018', 'trophy'),
+  ('Dra. Ana Paula Costa', 2, 'Ultrassom Bovino', 'Certificado técnico', '2019', 'chart'),
+  ('Dra. Ana Paula Costa', 3, 'MAPA — Inseminadora Credenciada', 'Reg. 55821/2016', 'ativo', 'check')
+) as v(vet_name, position, title, institution, year_label, icon)
+join vet vt on vt.name = v.vet_name;
+
+-- vet_service (servicos). price_label=preco; per_head = preco contém '/cabeça';
+-- price_amount = número parseado do preço (mesma regra do front). duration_label=dur.
+insert into vet_service (vet_id, position, name, price_label, price_amount, per_head, duration_label, icon)
+select vt.id, v.position, v.name, v.price_label, v.price_amount, v.per_head, v.duration_label, v.icon
+from (values
+  ('Dr. Carlos Mendes', 0, 'Vacinação em grande escala', 'R$ 8,00/cabeça',            8.00, true,  '4–6h', 'vacina'),
+  ('Dr. Carlos Mendes', 1, 'Cirurgia de rúmen',          'R$ 800,00',               800.00, false, '2–3h', 'cirurgia'),
+  ('Dr. Carlos Mendes', 2, 'Inseminação Artificial (IATF)', 'R$ 45,00/cabeça',        45.00, true,  '3–4h', 'iatf'),
+  ('Dr. Carlos Mendes', 3, 'Ultrassom gestacional',      'R$ 150,00',               150.00, false, '1h',   'ultrassom'),
+  ('Dr. Carlos Mendes', 4, 'Emergência 24h',             'R$ 500,00 + deslocamento', 500.00, false, 'imediato', 'emergencia'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Consulta clínica',      'R$ 180,00',           180.00, false, '1h',       'consulta'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Emergência 24h',        'R$ 450,00',           450.00, false, 'imediato', 'emergencia'),
+  ('VetAgro Clínica — Dr. João Silva', 2, 'Exames laboratoriais',  'a partir de R$ 90,00', 90.00, false, '24–48h',   'exames'),
+  ('VetAgro Clínica — Dr. João Silva', 3, 'Raio-X',                'R$ 220,00',           220.00, false, '30min',    'raiox'),
+  ('Téc. Maria Souza', 0, 'Vacinação',              'R$ 8,00/cabeça',   8.00, true,  '4h',  'vacina'),
+  ('Téc. Maria Souza', 1, 'Inseminação Artificial', 'R$ 40,00/cabeça', 40.00, true,  '3h',  'iatf'),
+  ('Téc. Maria Souza', 2, 'Apoio de manejo',        'R$ 200,00/dia',  200.00, false, 'dia', 'manejo'),
+  ('Dra. Ana Paula Costa', 0, 'Consulta reprodutiva',  'R$ 300,00',   300.00, false, '1h',   'consulta'),
+  ('Dra. Ana Paula Costa', 1, 'IATF',                  'R$ 45,00/cabeça', 45.00, true, '3–4h', 'iatf'),
+  ('Dra. Ana Paula Costa', 2, 'Ultrassom gestacional', 'R$ 150,00',   150.00, false, '1h',   'ultrassom')
+) as v(vet_name, position, name, price_label, price_amount, per_head, duration_label, icon)
+join vet vt on vt.name = v.vet_name;
+
+-- vet_availability_day (agenda). weekday: Seg=1..Sáb=6, Dom=0 (schema 0=domingo..6=sábado).
+insert into vet_availability_day (vet_id, weekday, day_label, status, hours_label)
+select vt.id, v.weekday, v.day_label, v.status::agenda_status, v.hours_label
+from (values
+  ('Dr. Carlos Mendes', 1, 'Seg', 'on',      '08–18h'), ('Dr. Carlos Mendes', 2, 'Ter', 'on',      '08–18h'),
+  ('Dr. Carlos Mendes', 3, 'Qua', 'partial', '14–18h'), ('Dr. Carlos Mendes', 4, 'Qui', 'on',      '08–18h'),
+  ('Dr. Carlos Mendes', 5, 'Sex', 'on',      '08–18h'), ('Dr. Carlos Mendes', 6, 'Sáb', 'off',     '—'),
+  ('Dr. Carlos Mendes', 0, 'Dom', 'partial', 'Emerg.'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Seg', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 2, 'Ter', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 3, 'Qua', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 4, 'Qui', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 5, 'Sex', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 6, 'Sáb', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Dom', 'on', '24h'),
+  ('Téc. Maria Souza', 1, 'Seg', 'on',      '07–17h'), ('Téc. Maria Souza', 2, 'Ter', 'on',      '07–17h'),
+  ('Téc. Maria Souza', 3, 'Qua', 'on',      '07–17h'), ('Téc. Maria Souza', 4, 'Qui', 'partial', '13–17h'),
+  ('Téc. Maria Souza', 5, 'Sex', 'on',      '07–17h'), ('Téc. Maria Souza', 6, 'Sáb', 'partial', 'manhã'),
+  ('Téc. Maria Souza', 0, 'Dom', 'off',     '—'),
+  ('Dra. Ana Paula Costa', 1, 'Seg', 'off',     '—'), ('Dra. Ana Paula Costa', 2, 'Ter', 'off', '—'),
+  ('Dra. Ana Paula Costa', 3, 'Qua', 'off',     '—'), ('Dra. Ana Paula Costa', 4, 'Qui', 'off', '—'),
+  ('Dra. Ana Paula Costa', 5, 'Sex', 'partial', 'lista de espera'), ('Dra. Ana Paula Costa', 6, 'Sáb', 'off', '—'),
+  ('Dra. Ana Paula Costa', 0, 'Dom', 'off',     '—')
+) as v(vet_name, weekday, day_label, status, hours_label)
+join vet vt on vt.name = v.vet_name;
+
+-- ---- 11.4 VET · dado privado do user 1 -------------------------------------
+-- vet_appointment (1 exemplo): Rafael agenda "Vacinação em grande escala" (por
+-- cabeça, R$ 8/cab) com o Dr. Carlos, na fazenda, 100 cabeças, pagamento pix.
+--   subtotal = 8,00 × 100 = 800,00 ; travel_fee = 100,00 (deslocamento fazenda) ;
+--   pix_discount = 5% × (800+100) = 45,00 ; total (GENERATED) = 855,00 (NÃO inserir).
+insert into vet_appointment (user_id, vet_id, service_id, scheduled_at, location, animal_count, payment_method, subtotal, travel_fee, pix_discount, status, notes)
+select 1, vt.id, vs.id, timestamptz '2026-09-15 09:00:00-03', 'fazenda'::appointment_location, 100, 'pix'::payment_method,
+       800.00, 100.00, 45.00, 'confirmado'::appointment_status, 'Vacinação de aftosa no rebanho — curral próprio.'
+from vet vt
+join vet_service vs on vs.vet_id = vt.id and vs.position = 0
+where vt.name = 'Dr. Carlos Mendes';
+
+-- vet_review (reviews[] do mock; +1 review do próprio Rafael ligada ao seu
+-- agendamento). author_user_id=1 só na do Rafael; nas demais NULL (seedadas/admin).
+-- CADA insert dispara o trigger que bumpa vet.reviews_count -> corrigido em 11.9.
+insert into vet_review (vet_id, author_user_id, appointment_id, author_name, review_date, rating, comment, service_label)
+select vt.id, null::bigint, null::bigint, v.author_name, v.review_date::date, v.rating, v.comment, v.service_label
+from (values
+  ('Dr. Carlos Mendes', 'João Silva — Faz. Boa Vista', '2026-08-15', 5, 'Dr. Carlos salvou meu rebanho! Vacinação rápida e profissional, voltou no dia seguinte para verificar os animais. Recomendo!', 'Vacinação de 500 cabeças'),
+  ('Dr. Carlos Mendes', 'Maria Souza — Sítio Esperança', '2026-08-10', 5, 'Fez a IATF no meu rebanho com excelente resultado. 85% de prenhez! Vale cada centavo.', 'Inseminação Artificial'),
+  ('Dr. Carlos Mendes', 'Carlos R. — Rancho do Gado', '2026-08-05', 4, 'Bom profissional, serviço bem feito, mas chegou 1h atrasado. Pontualidade pode melhorar.', 'Cirurgia de rúmen'),
+  ('VetAgro Clínica — Dr. João Silva', 'Pedro L. — Faz. Três Rios', '2026-08-18', 5, 'Atenderam meu boi de madrugada numa emergência. Estrutura excelente, salvaram o animal.', 'Emergência 24h'),
+  ('VetAgro Clínica — Dr. João Silva', 'Ana P. — Sítio Bela Vista', '2026-08-12', 4, 'Exames rápidos e precisos. Recomendo para quem precisa de laboratório.', 'Exames laboratoriais'),
+  ('Téc. Maria Souza', 'Roberto F. — Faz. Nova Era', '2026-08-14', 5, 'Preço justo e trabalho caprichado. Vacinou 200 cabeças sem estresse pro gado.', 'Vacinação'),
+  ('Dra. Ana Paula Costa', 'Lucas M. — Faz. Horizonte', '2026-08-20', 5, 'Taxa de prenhez impressionante. Profissional extremamente competente e organizada.', 'IATF — 300 matrizes')
+) as v(vet_name, author_name, review_date, rating, comment, service_label)
+join vet vt on vt.name = v.vet_name;
+
+-- review do próprio Rafael (author_user_id=1), ligada ao seu agendamento (exercita
+-- a FK appointment_id e o índice único ux_vet_review_appointment).
+insert into vet_review (vet_id, author_user_id, appointment_id, author_name, review_date, rating, comment, service_label)
+select ap.vet_id, 1, ap.id, 'Rafael Mendonça', date '2026-09-16', 5,
+       'Serviço impecável, vacinação rápida e bem organizada. Rebanho tranquilo o tempo todo. Recomendo!', 'Vacinação em grande escala'
+from vet_appointment ap
+where ap.user_id = 1
+  and ap.vet_id = (select id from vet where name = 'Dr. Carlos Mendes');
+
+-- vet_follow: Rafael segue o Dr. Carlos.
+insert into vet_follow (user_id, vet_id)
+select 1, id from vet where name = 'Dr. Carlos Mendes';
+
+-- ---- 11.5 USADOS · catálogo + conteúdo do dono -----------------------------
+-- used_category (USADOS_CAT).
+insert into used_category (slug, label, icon) values
+  ('manejo',      'Manejo',      'wrench'),
+  ('veiculos',    'Veículos',    'tractor'),
+  ('ferramentas', 'Ferramentas', 'gear'),
+  ('cercas',      'Cercas',      'bolt'),
+  ('veterinario', 'Veterinário', 'stethoscope');
+
+-- used_listing (USADOS — 5). Conteúdo do dono -> só no DEMO. Ancorados a sellers
+-- existentes (users 2..6) preservando o seller_name do mock. views fixado em 11.9.
+insert into used_listing (seller_user_id, category_id, title, price, condition, city, uf, distance, photo_url, description, views, seller_name, seller_rating, featured)
+select v.seller_user_id, uc.id, v.title, v.price, v.condition::used_condition, v.city, v.uf, v.distance, v.photo_url, v.description, v.views, v.seller_name, v.seller_rating, v.featured
+from (values
+  (2, 'manejo',      'Tronco de Contenção Bovino — metálico', 4800, 'bom',   'Barretos',      'SP',  92, 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=400&h=300&fit=crop&auto=format', 'Tronco de contenção metálico galvanizado, suporta até 600kg. Usado por 2 anos, em ótimo estado de conservação. Acompanha gancho e peias.', 148, 'Fazenda Santa Helena', 4.9, true),
+  (3, 'ferramentas', 'Pulverizador Costal 20L — Guarany',      320, 'otimo', 'Uberaba',       'MG', 210, 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&auto=format', 'Pulverizador costal 20 litros, pouco uso. Acessórios completos, mangueira em perfeito estado.', 63, 'Paulo Saraiva', 4.7, false),
+  (4, 'manejo',      'Balança Eletrônica Bovina 2000kg',      9200, 'bom',   'Rondonópolis',  'MT', 890, 'https://images.unsplash.com/photo-1559523161-0fc0d8b814b6?w=400&h=300&fit=crop&auto=format', 'Balança eletrônica com display digital, capacidade 2.000kg. Revisada em 2025. Acompanha brete de contenção.', 201, 'Agrovil Equipamentos', 4.8, true),
+  (5, 'cercas',      'Conjunto de Cerca Elétrica — 3km',      1850, 'bom',   'Campo Grande',  'MS', 580, 'https://images.unsplash.com/photo-1500829243541-74b677fecc30?w=400&h=300&fit=crop&auto=format', '3km de fio liso + eletrificador rural 3J. Completo e funcional. Retirada local preferida.', 37, 'Marco Antônio F.', 5.0, false),
+  (6, 'veterinario','Kit Veterinário Completo — seringa dosadora', 680, 'otimo', 'Ponta Grossa', 'PR', 440, 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&h=300&fit=crop&auto=format', 'Kit com seringa dosadora 10ml, aplicador de crotálias, descornador e faca cirúrgica. Tudo esterilizado.', 85, 'Dr. Leandro Vet', 4.9, false)
+) as v(seller_user_id, cat_slug, title, price, condition, city, uf, distance, photo_url, description, views, seller_name, seller_rating, featured)
+join used_category uc on uc.slug = v.cat_slug;
+
+-- used_saved: Rafael salva 1 anúncio (o tronco). used_contact: registra 1 contato
+-- (a balança). Ambos DADO PRIVADO do user 1.
+insert into used_saved (user_id, listing_id)
+select 1, id from used_listing where title = 'Tronco de Contenção Bovino — metálico';
+
+insert into used_contact (user_id, listing_id, message)
+select 1, id, 'Tenho interesse na balança. Ainda disponível? Consigo retirar em Rondonópolis.'
+from used_listing where title = 'Balança Eletrônica Bovina 2000kg';
+
+-- ---- 11.6 VÍDEOS · catálogo + engajamento do user 1 ------------------------
+-- video_category (VET_CATS menos 'todos').
+insert into video_category (slug, label, icon) values
+  ('vacinacao',  'Vacinação',  'syringe'),
+  ('reproducao', 'Reprodução', 'cow'),
+  ('manejo',     'Manejo',     'wrench'),
+  ('nutricao',   'Nutrição',   'grain'),
+  ('cirurgia',   'Cirurgia',   'scissors');
+
+-- vet_video (VET_VIDEOS — 5). vet_id NULL (autores do mock não estão no catálogo
+-- de vets). likes_count/saves_count/views = mock; fixados em 11.9.
+insert into vet_video (category_id, vet_id, author_name, author_credential, title, description, thumb_url, duration_label, views, likes_count, saves_count, featured)
+select vc.id, null::bigint, v.author_name, v.author_credential, v.title, v.description, v.thumb_url, v.duration_label, v.views, v.likes_count, v.saves_count, v.featured
+from (values
+  ('vacinacao',  'Dr. Fernando Melo', 'CRMV-SP 12458', 'Vacinação contra Febre Aftosa — passo a passo completo', 'Tutorial completo de como realizar a vacinação corretamente, evitando desperdício e garantindo imunidade.', 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400&h=280&fit=crop&auto=format', '14:32', 48200, 3840, 1200, true),
+  ('reproducao', 'Dra. Ana Cristina', 'CRMV-MG 8834', 'Diagnóstico de gestação por ultrassom em bovinos', 'Como identificar fêmeas prenhas com precisão. Técnicas de ultrassonografia para bovinos.', 'https://images.unsplash.com/photo-1559523161-0fc0d8b814b6?w=400&h=280&fit=crop&auto=format', '22:15', 31500, 2100, 890, false),
+  ('manejo',     'Dr. Roberto Nunes', 'CRMV-MT 5521', 'Manejo correto no tronco de contenção — sem estresse animal', 'Técnicas de bem-estar animal no manejo. Reduz estresse e aumenta produtividade.', 'https://images.unsplash.com/photo-1500829243541-74b677fecc30?w=400&h=280&fit=crop&auto=format', '08:44', 19700, 1580, 620, false),
+  ('nutricao',   'Dr. Sandro Lima', 'CRMV-GO 9942', 'Suplementação mineral para bovinos em pasto — quando e como', 'Qual sal mineral escolher, dosagem correta e como monitorar o consumo do rebanho.', 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=280&fit=crop&auto=format', '18:08', 28900, 2340, 950, true),
+  ('vacinacao',  'Dra. Paula Costa', 'CRMV-PR 7710', 'Aplicação de ivermectina — via ideal e dosagem correta', 'Subcutânea ou pour-on? Quando usar cada via e como calcular a dose pelo peso do animal.', 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&h=280&fit=crop&auto=format', '11:20', 41300, 3120, 1450, false)
+) as v(cat_slug, author_name, author_credential, title, description, thumb_url, duration_label, views, likes_count, saves_count, featured)
+join video_category vc on vc.slug = v.cat_slug;
+
+-- video_like / video_save do user 1 (disparam triggers de likes_count/saves_count
+-- -> corrigidos em 11.9).
+insert into video_like (user_id, video_id)
+select 1, id from vet_video where title = 'Vacinação contra Febre Aftosa — passo a passo completo';
+
+insert into video_save (user_id, video_id)
+select 1, id from vet_video where title = 'Suplementação mineral para bovinos em pasto — quando e como';
+
+-- ---- 11.9 CONTADORES AUTORITATIVOS (rodar DEPOIS de todas as filhas) --------
+--  Os triggers SECURITY DEFINER (022) já bumparam group_buy/vet/vet_video pelas
+--  poucas filhas do user 1. Aqui FIXAMOS os contadores nos valores do mock
+--  (que representam MUITOS usuários) / na contagem real, tornando o seed a
+--  fonte-da-verdade e idempotente independentemente do efeito dos triggers.
+update group_buy g set qty_current = v.qc, participants_count = v.pc
+from (values
+  ('Vacina Febre Aftosa 100d', 3800, 28),
+  ('Ração Confinamento 23%',    610, 14),
+  ('Ivermectina 1% 500ml',      218, 19)
+) as v(title, qc, pc)
+where g.title = v.title;
+
+update vet vt set reviews_count = v.rc
+from (values
+  ('Dr. Carlos Mendes', 127),
+  ('VetAgro Clínica — Dr. João Silva', 89),
+  ('Téc. Maria Souza', 54),
+  ('Dra. Ana Paula Costa', 43)
+) as v(name, rc)
+where vt.name = v.name;
+
+update vet_video vv set likes_count = v.lk, saves_count = v.sv, views = v.vw
+from (values
+  ('Vacinação contra Febre Aftosa — passo a passo completo', 3840, 1200, 48200),
+  ('Diagnóstico de gestação por ultrassom em bovinos',        2100,  890, 31500),
+  ('Manejo correto no tronco de contenção — sem estresse animal', 1580, 620, 19700),
+  ('Suplementação mineral para bovinos em pasto — quando e como', 2340, 950, 28900),
+  ('Aplicação de ivermectina — via ideal e dosagem correta',  3120, 1450, 41300)
+) as v(title, lk, sv, vw)
+where vv.title = v.title;
+
+update used_listing u set views = v.vw
+from (values
+  ('Tronco de Contenção Bovino — metálico', 148),
+  ('Pulverizador Costal 20L — Guarany',      63),
+  ('Balança Eletrônica Bovina 2000kg',      201),
+  ('Conjunto de Cerca Elétrica — 3km',       37),
+  ('Kit Veterinário Completo — seringa dosadora', 85)
+) as v(title, vw)
+where u.title = v.title;
+
+-- insumo_category.product_count = contagem REAL de insumo_product por categoria
+-- (não o count do mock, que é do catálogo cheio). Deixa 04_business_invariants
+-- (c) verde e é a única fonte-da-verdade do contador.
+update insumo_category c
+   set product_count = (select count(*) from insumo_product p where p.category_id = c.id);
+
+
+-- ============================================================================
+--  12. RESSINCRONIZAÇÃO DE SEQUENCES
 -- ----------------------------------------------------------------------------
 --  Inserimos ids explícitos com OVERRIDING SYSTEM VALUE nestas tabelas; isso NÃO
 --  avança a sequence de identity. Sem este setval, o próximo INSERT sem id
 --  tentaria id=1 e colidiria. As demais tabelas (ids auto) já estão em sincronia.
+--  As 26 tabelas da SEÇÃO 15 NÃO forçam id (tudo resolvido por chave natural),
+--  então NÃO precisam de setval — suas sequences já avançaram com os inserts.
 -- ============================================================================
 select setval(pg_get_serial_sequence('users', 'id'),              (select max(id) from users));
 select setval(pg_get_serial_sequence('farms', 'id'),              (select max(id) from farms));

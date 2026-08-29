@@ -145,5 +145,118 @@ begin
   end;
 end $$;
 
+-- ============================================================================
+--  SEÇÃO 15 — NOVOS DOMÍNIOS: inserts inválidos que DEVEM falhar
+--  (usam dados do seed: vet 'Dr. Carlos Mendes', video/campanha por título, etc.)
+-- ============================================================================
+
+-- 11) CHECK: supplier_offer.preco negativo ------------------------------------
+--     usa um par (produto, fornecedor) SEM oferta no seed p/ isolar o CHECK
+--     (evita que o UNIQUE dispare antes).
+do $$
+begin
+  begin
+    insert into supplier_offer (product_id, supplier_id, preco)
+    values ((select id from insumo_product where name = 'Sal Mineral Bovinos Corte (30kg)'),
+            (select id from supplier where name = 'Zoetis Distribuidora'),
+            -1);
+    raise exception 'FAIL: aceitou supplier_offer.preco negativo (chk_supplier_offer_preco)';
+  exception when check_violation then
+    raise notice 'PASS: supplier_offer.preco < 0 rejeitado (CHECK)';
+  end;
+end $$;
+
+-- 12) CHECK: vet.rating > 5 ---------------------------------------------------
+do $$
+begin
+  begin
+    insert into vet (name, kind, rating) values ('Vet Rating Inválido', 'vet', 5.5);
+    raise exception 'FAIL: aceitou vet.rating > 5 (chk_vet_rating)';
+  exception when check_violation then
+    raise notice 'PASS: vet.rating fora de 0..5 rejeitado (CHECK)';
+  end;
+end $$;
+
+-- 13) CHECK: vet_review.rating = 0 (deve ser 1..5) ----------------------------
+do $$
+begin
+  begin
+    insert into vet_review (vet_id, rating)
+    values ((select id from vet where name = 'Dr. Carlos Mendes'), 0);
+    raise exception 'FAIL: aceitou vet_review.rating = 0 (chk_vet_review_rating)';
+  exception when check_violation then
+    raise notice 'PASS: vet_review.rating fora de 1..5 rejeitado (CHECK)';
+  end;
+end $$;
+
+-- 14) GENERATED: não pode inserir em vet_appointment.total --------------------
+do $$
+begin
+  begin
+    insert into vet_appointment (user_id, vet_id, service_id, scheduled_at, location, payment_method, subtotal, total)
+    select 1, vt.id, vs.id, now(), 'clinica', 'pix', 100, 999
+    from vet vt join vet_service vs on vs.vet_id = vt.id and vs.position = 0
+    where vt.name = 'Dr. Carlos Mendes';
+    raise exception 'FAIL: aceitou INSERT em coluna GENERATED vet_appointment.total';
+  exception when others then
+    if sqlstate = '428C9' then
+      raise notice 'PASS: INSERT em vet_appointment.total (GENERATED ALWAYS) rejeitado';
+    else raise; end if;
+  end;
+end $$;
+
+-- 15) CHECK: vet_appointment com pix_discount > subtotal+travel_fee -----------
+--     (chk_vet_appointment_total_nonneg): total ficaria negativo.
+do $$
+begin
+  begin
+    insert into vet_appointment (user_id, vet_id, service_id, scheduled_at, location, payment_method, subtotal, travel_fee, pix_discount)
+    select 1, vt.id, vs.id, now(), 'fazenda', 'pix', 100, 0, 200
+    from vet vt join vet_service vs on vs.vet_id = vt.id and vs.position = 0
+    where vt.name = 'Dr. Carlos Mendes';
+    raise exception 'FAIL: aceitou pix_discount > subtotal+travel_fee (chk_vet_appointment_total_nonneg)';
+  exception when check_violation then
+    raise notice 'PASS: desconto pix que zeraria/negativaria o total rejeitado (CHECK)';
+  end;
+end $$;
+
+-- 16) UNIQUE: video_like duplicado (user1, vídeo v1 já curtido no seed) --------
+do $$
+begin
+  begin
+    insert into video_like (user_id, video_id)
+    select 1, id from vet_video where title = 'Vacinação contra Febre Aftosa — passo a passo completo';
+    raise exception 'FAIL: aceitou video_like duplicado (unique user_id, video_id)';
+  exception when unique_violation then
+    raise notice 'PASS: video_like duplicado (user,video) rejeitado';
+  end;
+end $$;
+
+-- 17) UNIQUE: group_buy_participation duplicada (user1 já aderiu à aftosa) -----
+do $$
+begin
+  begin
+    insert into group_buy_participation (group_buy_id, user_id, quantity)
+    select id, 1, 10 from group_buy where title = 'Vacina Febre Aftosa 100d';
+    raise exception 'FAIL: aceitou participação duplicada (unique group_buy_id, user_id)';
+  exception when unique_violation then
+    raise notice 'PASS: group_buy_participation duplicada (campanha,user) rejeitada';
+  end;
+end $$;
+
+-- 18) FK: vet_appointment com vet_id inexistente ------------------------------
+do $$
+begin
+  begin
+    insert into vet_appointment (user_id, vet_id, service_id, scheduled_at, location, payment_method, subtotal)
+    select 1, 999999, vs.id, now(), 'clinica', 'pix', 100
+    from vet vt join vet_service vs on vs.vet_id = vt.id and vs.position = 0
+    where vt.name = 'Dr. Carlos Mendes';
+    raise exception 'FAIL: aceitou vet_appointment com vet_id inexistente (FK)';
+  exception when foreign_key_violation then
+    raise notice 'PASS: vet_appointment com vet_id inexistente rejeitado (FK)';
+  end;
+end $$;
+
 rollback;
 \echo '== 02_constraints_enforced OK (transação revertida, nada persistido) =='

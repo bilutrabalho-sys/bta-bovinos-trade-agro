@@ -115,6 +115,25 @@ export function HomeScreen({ onNavigate, onTab }: {
             </button>
           </div>
 
+          {/* Insumos, serviços veterinários, usados e vídeos técnicos */}
+          <div>
+            <SectionTitle action="Ver insumos" onAction={() => onNavigate('insumos')}>Insumos &amp; Serviços</SectionTitle>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Insumos', sub: 'Compare fornecedores', icon: <Ic.Package />, nav: 'insumos' as Screen },
+                { label: 'Veterinários', sub: 'Agende quem aplica', icon: <Ic.Stethoscope />, nav: 'vet-connect' as Screen },
+                { label: 'Usados', sub: 'Máquinas e equipamentos', icon: <Ic.Tractor />, nav: 'usados' as Screen },
+                { label: 'Vídeos', sub: 'Aulas de veterinários', icon: <Ic.Video />, nav: 'video-feed' as Screen },
+              ].map(c => (
+                <Btn key={c.label} sound="tap" onClick={() => onNavigate(c.nav)} className="bg-bta-surface rounded-2xl p-4 border border-bta-border card-shadow text-left">
+                  <div className="w-10 h-10 rounded-xl bg-bta-primary/10 flex items-center justify-center text-bta-primary mb-3 [&>svg]:w-5 [&>svg]:h-5">{c.icon}</div>
+                  <p className="font-display font-bold text-bta-text text-sm">{c.label}</p>
+                  <p className="text-bta-muted text-xs mt-0.5">{c.sub}</p>
+                </Btn>
+              ))}
+            </div>
+          </div>
+
           {/* Opportunities for you */}
           {topLots.length > 0 && (
           <div>
