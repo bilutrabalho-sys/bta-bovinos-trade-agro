@@ -24,7 +24,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
     <div className="flex-1 relative overflow-hidden bg-black">
       {REDUCED_MOTION ? (
         <img
-          src="/media/bta-hero.png"
+          src="/media/bta-hero.jpg"
           alt="BTA — Bovinos Trade Agro. Inteligência que movimenta o gado."
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -32,7 +32,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
         <video
           ref={videoRef}
           src="/media/bta-hero.mp4"
-          poster="/media/bta-hero.png"
+          poster="/media/bta-hero.jpg"
           autoPlay
           muted
           loop
