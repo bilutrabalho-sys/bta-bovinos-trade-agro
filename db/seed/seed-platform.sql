@@ -58,7 +58,15 @@ truncate table
   user_lesson_progress,
   simulations,
   notifications, favorites, follows,
-  subscription_plans, subscriptions, lot_boosts, services, platform_settings
+  subscription_plans, subscriptions, lot_boosts, services, platform_settings,
+  -- SEÇÃO 15 (novos domínios). Truncamos as 26 tabelas novas; abaixo só o
+  -- CATÁLOGO é reinserido (as de dado privado/conteúdo do dono nascem VAZIAS).
+  insumo_category, insumo_product, insumo_product_tag, supplier, supplier_offer,
+  farm_stock_item, group_buy, group_buy_participation, price_alert, insumo_purchase,
+  vet, vet_specialty, vet_certification, vet_service, vet_availability_day,
+  vet_appointment, vet_review,
+  used_category, used_listing, used_saved, used_contact,
+  video_category, vet_video, video_like, video_save, vet_follow
 restart identity cascade;
 
 
@@ -282,14 +290,232 @@ insert into platform_settings (key, value, description) values
 
 
 -- ============================================================================
---  5. RESSINCRONIZAÇÃO DE SEQUENCES
+--  5. NOVOS DOMÍNIOS (SEÇÃO 15) — SÓ CATÁLOGO
+-- ----------------------------------------------------------------------------
+--  PRODUÇÃO: só o CATÁLOGO PÚBLICO das 4 áreas novas (categorias, produtos/
+--  ofertas de insumo, campanhas de compra coletiva, categorias de usados/vídeos,
+--  vídeos e o diretório de vets + filhas de exibição). As tabelas de DADO PRIVADO
+--  do usuário e de CONTEÚDO DO DONO (estoque, participação, alertas, compras,
+--  agendamentos, reviews, ANÚNCIOS DE USADOS, salvos/contato, likes/saves/follows)
+--  nascem VAZIAS — igual ao feed de lots. Vets seedados têm owner_user_id = NULL
+--  (admin-curados). FKs resolvidas por chave natural; nenhum id forçado.
+--
+--  Contadores: como NÃO há filhas (participação/review/like/save), os triggers
+--  não disparam e os contadores ficam nos valores inseridos (mock). Só o
+--  product_count é fixado explicitamente pela contagem real de insumo_product.
+-- ============================================================================
+
+-- insumo_category (product_count fixado no fim desta seção).
+insert into insumo_category (slug, label, color, icon) values
+  ('vacinas',      'Vacinas',      '#1565C0', 'syringe'),
+  ('medicamentos', 'Medicamentos', '#6A1B9A', 'pill'),
+  ('racao',        'Ração',        '#795548', 'grain'),
+  ('suplementos',  'Suplementos',  '#E65100', 'flask'),
+  ('equipamentos', 'Equipamentos', '#123B2A', 'wrench'),
+  ('defensivos',   'Defensivos',   '#C94A45', 'shield');
+
+insert into insumo_product (category_id, name, cold_chain, temp_range)
+select ic.id, v.name, v.cold_chain, v.temp_range
+from (values
+  ('vacinas',      'Vacina Febre Aftosa (100 doses)',           true,  '2°C–8°C'),
+  ('medicamentos', 'Ivermectina 1% Injetável (500ml)',          false, null),
+  ('racao',        'Ração Bovinos Confinamento 23% (sc 40kg)',  false, null),
+  ('suplementos',  'Sal Mineral Bovinos Corte (30kg)',          false, null)
+) as v(cat_slug, name, cold_chain, temp_range)
+join insumo_category ic on ic.slug = v.cat_slug;
+
+insert into insumo_product_tag (product_id, tag)
+select p.id, v.tag
+from (values
+  ('Vacina Febre Aftosa (100 doses)',          'FMD'),
+  ('Vacina Febre Aftosa (100 doses)',          'Obrigatória'),
+  ('Vacina Febre Aftosa (100 doses)',          'Refrigerado'),
+  ('Ivermectina 1% Injetável (500ml)',         'Antiparasitário'),
+  ('Ivermectina 1% Injetável (500ml)',         'Endectocida'),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Alto Proteína'),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Confinamento'),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Fase Recria'),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Suplementação')
+) as v(prod_name, tag)
+join insumo_product p on p.name = v.prod_name;
+
+insert into supplier (name) values
+  ('Boehringer BR'), ('Vetcamp Sul'), ('AgroVet SP'),
+  ('Zoetis Distribuidora'), ('MSD Animal Health'), ('CentraVet'),
+  ('Purina Agroshop'), ('Guabi Distribuidora'), ('Cargill Feed'),
+  ('Tortuga Distribuidora'), ('Provimi BR');
+
+insert into supplier_offer (product_id, supplier_id, preco, frete, prazo_dias, rating, estoque)
+select p.id, s.id, v.preco, v.frete, v.prazo, v.rating, v.estoque
+from (values
+  ('Vacina Febre Aftosa (100 doses)',          'Boehringer BR',        187.50,  0, 3, 4.9,  500),
+  ('Vacina Febre Aftosa (100 doses)',          'Vetcamp Sul',          194.00, 15, 5, 4.7,  200),
+  ('Vacina Febre Aftosa (100 doses)',          'AgroVet SP',           201.00,  0, 4, 4.6,  350),
+  ('Ivermectina 1% Injetável (500ml)',         'Zoetis Distribuidora',  89.90,  0, 3, 5.0, 1200),
+  ('Ivermectina 1% Injetável (500ml)',         'MSD Animal Health',     94.50,  0, 4, 4.8,  800),
+  ('Ivermectina 1% Injetável (500ml)',         'CentraVet',             98.00, 18, 6, 4.5,  150),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Purina Agroshop',      142.00, 35, 5, 4.8, 5000),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Guabi Distribuidora',  138.50, 40, 7, 4.6, 3000),
+  ('Ração Bovinos Confinamento 23% (sc 40kg)', 'Cargill Feed',         135.00, 50, 8, 4.9, 8000),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Tortuga Distribuidora', 98.50, 20, 4, 4.9, 2000),
+  ('Sal Mineral Bovinos Corte (30kg)',         'Provimi BR',           102.00, 15, 5, 4.7, 1500)
+) as v(prod_name, sup_name, preco, frete, prazo, rating, estoque)
+join insumo_product p on p.name = v.prod_name
+join supplier s on s.name = v.sup_name;
+
+insert into group_buy (category_id, title, unit, qty_meta, qty_current, participants_count, deadline, preco_base, preco_grupo, regiao, status)
+select ic.id, v.title, v.unit, v.qty_meta, v.qty_current, v.participants, v.deadline::date, v.preco_base, v.preco_grupo, v.regiao, 'open'::group_buy_status
+from (values
+  ('vacinas',      'Vacina Febre Aftosa 100d', 'doses',   5000, 3800, 28, '2026-09-05',   2.05,   1.62, 'Triângulo Mineiro/MG'),
+  ('racao',        'Ração Confinamento 23%',   'sacos',    800,  610, 14, '2026-09-10', 138.50, 112.00, 'São Paulo Noroeste/SP'),
+  ('medicamentos', 'Ivermectina 1% 500ml',     'frascos',  300,  218, 19, '2026-09-15',  94.50,  76.80, 'Sul do Mato Grosso/MT')
+) as v(cat_slug, title, unit, qty_meta, qty_current, participants, deadline, preco_base, preco_grupo, regiao)
+join insumo_category ic on ic.slug = v.cat_slug;
+
+-- used_category / video_category (categorias de exibição). used_listing NÃO é
+-- semeado (conteúdo do dono -> feed nasce vazio, correto p/ produção).
+insert into used_category (slug, label, icon) values
+  ('manejo',      'Manejo',      'wrench'),
+  ('veiculos',    'Veículos',    'tractor'),
+  ('ferramentas', 'Ferramentas', 'gear'),
+  ('cercas',      'Cercas',      'bolt'),
+  ('veterinario', 'Veterinário', 'stethoscope');
+
+insert into video_category (slug, label, icon) values
+  ('vacinacao',  'Vacinação',  'syringe'),
+  ('reproducao', 'Reprodução', 'cow'),
+  ('manejo',     'Manejo',     'wrench'),
+  ('nutricao',   'Nutrição',   'grain'),
+  ('cirurgia',   'Cirurgia',   'scissors');
+
+-- vet_video (catálogo). vet_id NULL. Sem likes/saves de usuário (nascem no mock).
+insert into vet_video (category_id, vet_id, author_name, author_credential, title, description, thumb_url, duration_label, views, likes_count, saves_count, featured)
+select vc.id, null::bigint, v.author_name, v.author_credential, v.title, v.description, v.thumb_url, v.duration_label, v.views, v.likes_count, v.saves_count, v.featured
+from (values
+  ('vacinacao',  'Dr. Fernando Melo', 'CRMV-SP 12458', 'Vacinação contra Febre Aftosa — passo a passo completo', 'Tutorial completo de como realizar a vacinação corretamente, evitando desperdício e garantindo imunidade.', 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400&h=280&fit=crop&auto=format', '14:32', 48200, 3840, 1200, true),
+  ('reproducao', 'Dra. Ana Cristina', 'CRMV-MG 8834', 'Diagnóstico de gestação por ultrassom em bovinos', 'Como identificar fêmeas prenhas com precisão. Técnicas de ultrassonografia para bovinos.', 'https://images.unsplash.com/photo-1559523161-0fc0d8b814b6?w=400&h=280&fit=crop&auto=format', '22:15', 31500, 2100, 890, false),
+  ('manejo',     'Dr. Roberto Nunes', 'CRMV-MT 5521', 'Manejo correto no tronco de contenção — sem estresse animal', 'Técnicas de bem-estar animal no manejo. Reduz estresse e aumenta produtividade.', 'https://images.unsplash.com/photo-1500829243541-74b677fecc30?w=400&h=280&fit=crop&auto=format', '08:44', 19700, 1580, 620, false),
+  ('nutricao',   'Dr. Sandro Lima', 'CRMV-GO 9942', 'Suplementação mineral para bovinos em pasto — quando e como', 'Qual sal mineral escolher, dosagem correta e como monitorar o consumo do rebanho.', 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=280&fit=crop&auto=format', '18:08', 28900, 2340, 950, true),
+  ('vacinacao',  'Dra. Paula Costa', 'CRMV-PR 7710', 'Aplicação de ivermectina — via ideal e dosagem correta', 'Subcutânea ou pour-on? Quando usar cada via e como calcular a dose pelo peso do animal.', 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=400&h=280&fit=crop&auto=format', '11:20', 41300, 3120, 1450, false)
+) as v(cat_slug, author_name, author_credential, title, description, thumb_url, duration_label, views, likes_count, saves_count, featured)
+join video_category vc on vc.slug = v.cat_slug;
+
+-- vet (diretório) + filhas de exibição. owner_user_id NULL (admin-curados).
+insert into vet (owner_user_id, name, kind, kind_label, verified, city, uf, distance, rating, reviews_count, years_experience, formacao, photo_url, cover_url, price_label, availability, response_time, about)
+select null::bigint, v.name, v.kind::vet_kind, v.kind_label, v.verified, v.city, v.uf, v.distance, v.rating, v.reviews_count, v.years, v.formacao, v.foto, v.capa, v.price_label, v.availability::vet_availability, v.resposta, v.about
+from (values
+  ('Dr. Carlos Mendes', 'vet', 'Verificado', true, 'Rondonópolis', 'MT', 12, 4.9, 127, 15,
+   'UFMT — Medicina Veterinária (2011)',
+   'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1516467508483-a7212febe31a?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 250', 'hoje', 'Responde em ~15min',
+   'Médico veterinário com 15 anos de experiência em pecuária de corte e leite. Especialista em vacinação em grande escala, cirurgia de rúmen e reprodução animal. Atendo Rondonópolis e região num raio de 100km, com equipamento próprio para manejo no curral do cliente.'),
+  ('VetAgro Clínica — Dr. João Silva', 'clinica', 'Clínica Veterinária', true, 'Rondonópolis', 'MT', 8, 4.7, 89, 12,
+   'Clínica com estrutura completa de manejo',
+   'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1583911860205-72f8ac8ddcbe?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 180', 'hoje', 'Aberto agora (24h)',
+   'Clínica veterinária com curral para manejo, raio-X e laboratório de exames próprio. Atendimento de emergência 24 horas e equipe multidisciplinar para grandes rebanhos.'),
+  ('Téc. Maria Souza', 'tecnico', 'Técnica em Pecuária', true, 'Campo Verde', 'MT', 35, 4.6, 54, 8,
+   'Senar — Técnico em Pecuária (2018)',
+   'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=600&h=300&fit=crop&auto=format',
+   'Vacinação R$ 8/cab', 'amanha', 'Responde em ~1h',
+   'Técnica em pecuária especializada em vacinação, inseminação e manejo de curral. Atendimento ágil e preço acessível para pequenos e médios produtores da região de Campo Verde.'),
+  ('Dra. Ana Paula Costa', 'vet', 'Verificada', true, 'Rondonópolis', 'MT', 18, 5.0, 43, 10,
+   'USP — Medicina Veterinária (2015)',
+   'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop&auto=format',
+   'https://images.unsplash.com/photo-1444858291040-58f756a3bdd6?w=600&h=300&fit=crop&auto=format',
+   'Consulta R$ 300', 'lotado', 'Próxima agenda em 5 dias',
+   'Especialista em reprodução animal e ultrassonografia bovina. Credenciada pelo MAPA como inseminadora, com foco em protocolos IATF de alta taxa de prenhez.')
+) as v(name, kind, kind_label, verified, city, uf, distance, rating, reviews_count, years, formacao, foto, capa, price_label, availability, resposta, about);
+
+insert into vet_specialty (vet_id, specialty)
+select vt.id, v.specialty
+from (values
+  ('Dr. Carlos Mendes','Vacinação'), ('Dr. Carlos Mendes','Cirurgia'), ('Dr. Carlos Mendes','Medicina Bovina'),
+  ('VetAgro Clínica — Dr. João Silva','Vacinação'), ('VetAgro Clínica — Dr. João Silva','Emergência 24h'), ('VetAgro Clínica — Dr. João Silva','Exames'),
+  ('Téc. Maria Souza','Vacinação'), ('Téc. Maria Souza','Inseminação'), ('Téc. Maria Souza','Manejo'),
+  ('Dra. Ana Paula Costa','Reprodução'), ('Dra. Ana Paula Costa','Ultrassom'), ('Dra. Ana Paula Costa','IATF')
+) as v(vet_name, specialty)
+join vet vt on vt.name = v.vet_name;
+
+insert into vet_certification (vet_id, position, title, institution, year_label, icon)
+select vt.id, v.position, v.title, v.institution, v.year_label, v.icon
+from (values
+  ('Dr. Carlos Mendes', 0, 'Medicina Veterinária', 'UFMT — Univ. Federal de Mato Grosso', '2011', 'grad'),
+  ('Dr. Carlos Mendes', 1, 'Especialização em Medicina Bovina', 'USP — Univ. de São Paulo', '2014', 'trophy'),
+  ('Dr. Carlos Mendes', 2, 'Cirurgia de Rúmen', 'ABMV', 'válido até 2028', 'cert'),
+  ('Dr. Carlos Mendes', 3, 'MAPA — Inseminador Credenciado', 'Reg. 12345/2015', 'ativo', 'check'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Registro de Clínica Veterinária', 'CRMV-MT', 'ativo', 'hospital'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Laboratório credenciado', 'MAPA', '2023', 'lab'),
+  ('Téc. Maria Souza', 0, 'Técnico em Pecuária', 'Senar', '2018', 'grad'),
+  ('Téc. Maria Souza', 1, 'Curso de Inseminação Artificial', 'Embrapa', '2020', 'cert'),
+  ('Dra. Ana Paula Costa', 0, 'Medicina Veterinária', 'USP', '2015', 'grad'),
+  ('Dra. Ana Paula Costa', 1, 'Especialista em Reprodução Animal', 'Unesp', '2018', 'trophy'),
+  ('Dra. Ana Paula Costa', 2, 'Ultrassom Bovino', 'Certificado técnico', '2019', 'chart'),
+  ('Dra. Ana Paula Costa', 3, 'MAPA — Inseminadora Credenciada', 'Reg. 55821/2016', 'ativo', 'check')
+) as v(vet_name, position, title, institution, year_label, icon)
+join vet vt on vt.name = v.vet_name;
+
+insert into vet_service (vet_id, position, name, price_label, price_amount, per_head, duration_label, icon)
+select vt.id, v.position, v.name, v.price_label, v.price_amount, v.per_head, v.duration_label, v.icon
+from (values
+  ('Dr. Carlos Mendes', 0, 'Vacinação em grande escala', 'R$ 8,00/cabeça',            8.00, true,  '4–6h', 'vacina'),
+  ('Dr. Carlos Mendes', 1, 'Cirurgia de rúmen',          'R$ 800,00',               800.00, false, '2–3h', 'cirurgia'),
+  ('Dr. Carlos Mendes', 2, 'Inseminação Artificial (IATF)', 'R$ 45,00/cabeça',        45.00, true,  '3–4h', 'iatf'),
+  ('Dr. Carlos Mendes', 3, 'Ultrassom gestacional',      'R$ 150,00',               150.00, false, '1h',   'ultrassom'),
+  ('Dr. Carlos Mendes', 4, 'Emergência 24h',             'R$ 500,00 + deslocamento', 500.00, false, 'imediato', 'emergencia'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Consulta clínica',      'R$ 180,00',           180.00, false, '1h',       'consulta'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Emergência 24h',        'R$ 450,00',           450.00, false, 'imediato', 'emergencia'),
+  ('VetAgro Clínica — Dr. João Silva', 2, 'Exames laboratoriais',  'a partir de R$ 90,00', 90.00, false, '24–48h',   'exames'),
+  ('VetAgro Clínica — Dr. João Silva', 3, 'Raio-X',                'R$ 220,00',           220.00, false, '30min',    'raiox'),
+  ('Téc. Maria Souza', 0, 'Vacinação',              'R$ 8,00/cabeça',   8.00, true,  '4h',  'vacina'),
+  ('Téc. Maria Souza', 1, 'Inseminação Artificial', 'R$ 40,00/cabeça', 40.00, true,  '3h',  'iatf'),
+  ('Téc. Maria Souza', 2, 'Apoio de manejo',        'R$ 200,00/dia',  200.00, false, 'dia', 'manejo'),
+  ('Dra. Ana Paula Costa', 0, 'Consulta reprodutiva',  'R$ 300,00',   300.00, false, '1h',   'consulta'),
+  ('Dra. Ana Paula Costa', 1, 'IATF',                  'R$ 45,00/cabeça', 45.00, true, '3–4h', 'iatf'),
+  ('Dra. Ana Paula Costa', 2, 'Ultrassom gestacional', 'R$ 150,00',   150.00, false, '1h',   'ultrassom')
+) as v(vet_name, position, name, price_label, price_amount, per_head, duration_label, icon)
+join vet vt on vt.name = v.vet_name;
+
+insert into vet_availability_day (vet_id, weekday, day_label, status, hours_label)
+select vt.id, v.weekday, v.day_label, v.status::agenda_status, v.hours_label
+from (values
+  ('Dr. Carlos Mendes', 1, 'Seg', 'on',      '08–18h'), ('Dr. Carlos Mendes', 2, 'Ter', 'on',      '08–18h'),
+  ('Dr. Carlos Mendes', 3, 'Qua', 'partial', '14–18h'), ('Dr. Carlos Mendes', 4, 'Qui', 'on',      '08–18h'),
+  ('Dr. Carlos Mendes', 5, 'Sex', 'on',      '08–18h'), ('Dr. Carlos Mendes', 6, 'Sáb', 'off',     '—'),
+  ('Dr. Carlos Mendes', 0, 'Dom', 'partial', 'Emerg.'),
+  ('VetAgro Clínica — Dr. João Silva', 1, 'Seg', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 2, 'Ter', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 3, 'Qua', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 4, 'Qui', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 5, 'Sex', 'on', '24h'), ('VetAgro Clínica — Dr. João Silva', 6, 'Sáb', 'on', '24h'),
+  ('VetAgro Clínica — Dr. João Silva', 0, 'Dom', 'on', '24h'),
+  ('Téc. Maria Souza', 1, 'Seg', 'on',      '07–17h'), ('Téc. Maria Souza', 2, 'Ter', 'on',      '07–17h'),
+  ('Téc. Maria Souza', 3, 'Qua', 'on',      '07–17h'), ('Téc. Maria Souza', 4, 'Qui', 'partial', '13–17h'),
+  ('Téc. Maria Souza', 5, 'Sex', 'on',      '07–17h'), ('Téc. Maria Souza', 6, 'Sáb', 'partial', 'manhã'),
+  ('Téc. Maria Souza', 0, 'Dom', 'off',     '—'),
+  ('Dra. Ana Paula Costa', 1, 'Seg', 'off',     '—'), ('Dra. Ana Paula Costa', 2, 'Ter', 'off', '—'),
+  ('Dra. Ana Paula Costa', 3, 'Qua', 'off',     '—'), ('Dra. Ana Paula Costa', 4, 'Qui', 'off', '—'),
+  ('Dra. Ana Paula Costa', 5, 'Sex', 'partial', 'lista de espera'), ('Dra. Ana Paula Costa', 6, 'Sáb', 'off', '—'),
+  ('Dra. Ana Paula Costa', 0, 'Dom', 'off',     '—')
+) as v(vet_name, weekday, day_label, status, hours_label)
+join vet vt on vt.name = v.vet_name;
+
+-- product_count = contagem real de insumo_product por categoria (autoritativo).
+update insumo_category c
+   set product_count = (select count(*) from insumo_product p where p.category_id = c.id);
+
+
+-- ============================================================================
+--  6. RESSINCRONIZAÇÃO DE SEQUENCES
 -- ----------------------------------------------------------------------------
 --  Inserimos ids explícitos com OVERRIDING SYSTEM VALUE nestas tabelas de
 --  plataforma; isso NÃO avança a sequence de identity. Sem este setval, o
 --  próximo INSERT sem id tentaria id=1 e colidiria. As demais tabelas de
 --  plataforma (ids auto: cattle_category, breed, purpose, course_category,
 --  market_prices, market_price_points, lesson_sections, lesson_key_concepts,
---  lesson_quiz_questions, lesson_quiz_options) já ficam em sincronia.
+--  lesson_quiz_questions, lesson_quiz_options) já ficam em sincronia. As tabelas
+--  da SEÇÃO 15 (catálogo acima) também usam id auto -> já em sincronia.
 -- ============================================================================
 select setval(pg_get_serial_sequence('courses', 'id'),            (select max(id) from courses));
 select setval(pg_get_serial_sequence('lessons', 'id'),            (select max(id) from lessons));

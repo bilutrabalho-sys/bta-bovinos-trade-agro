@@ -201,4 +201,133 @@ begin
   raise notice 'PASS: smoke test do seed OK (contagens + contrato de ids 1..N)';
 end $$;
 
+-- ============================================================================
+--  SEÇÃO 15 — NOVOS DOMÍNIOS (invariantes de negócio)
+-- ============================================================================
+
+-- 11) GENERATED vet_appointment.total = subtotal + travel_fee - pix_discount --
+do $$
+declare bad int;
+begin
+  select count(*) into bad from vet_appointment
+   where total <> (subtotal + travel_fee - pix_discount) or total < 0;
+  if bad > 0 then
+    raise exception 'FAIL: % agendamento(s) com total divergente da fórmula (subtotal+travel_fee-pix_discount) ou negativo', bad;
+  end if;
+  raise notice 'PASS: vet_appointment.total confere com a fórmula e é >= 0 em todos os agendamentos';
+end $$;
+
+-- 12) MECANISMO do trigger de contador: group_buy_participation (delta) --------
+--     Testa o MECANISMO (não o valor de mock, que diverge de propósito): insere
+--     UMA adesão nova (user 2, campanha sem adesão dele) e mede o delta; ROLLBACK.
+begin;
+  do $$
+  declare gb bigint; pc_before int; qc_before numeric; pc_after int; qc_after numeric;
+  begin
+    select id, participants_count, qty_current into gb, pc_before, qc_before
+      from group_buy where title = 'Ração Confinamento 23%';
+    insert into group_buy_participation (group_buy_id, user_id, quantity) values (gb, 2, 50);
+    select participants_count, qty_current into pc_after, qc_after from group_buy where id = gb;
+    if pc_after <> pc_before + 1 then
+      raise exception 'FAIL: participants_count não subiu +1 (% -> %)', pc_before, pc_after;
+    end if;
+    if qc_after <> qc_before + 50 then
+      raise exception 'FAIL: qty_current não subiu +50 (% -> %)', qc_before, qc_after;
+    end if;
+    raise notice 'PASS: trigger de group_buy_participation incrementa participants_count(+1) e qty_current(+quantidade)';
+  end $$;
+rollback;
+
+-- 13) MECANISMO do trigger de contador: video_like -> vet_video.likes_count ----
+begin;
+  do $$
+  declare vid bigint; lc_before int; lc_after int;
+  begin
+    select id, likes_count into vid, lc_before
+      from vet_video where title = 'Diagnóstico de gestação por ultrassom em bovinos';
+    insert into video_like (user_id, video_id) values (2, vid);
+    select likes_count into lc_after from vet_video where id = vid;
+    if lc_after <> lc_before + 1 then
+      raise exception 'FAIL: vet_video.likes_count não subiu +1 (% -> %)', lc_before, lc_after;
+    end if;
+    raise notice 'PASS: trigger de video_like incrementa vet_video.likes_count (+1)';
+  end $$;
+rollback;
+
+-- 14) insumo_category.product_count == contagem real de insumo_product ---------
+--     (após o seed AUTORITATIVO, que fixa o contador pela contagem real).
+do $$
+declare bad int;
+begin
+  select count(*) into bad from insumo_category c
+   where c.product_count <> (select count(*) from insumo_product p where p.category_id = c.id);
+  if bad > 0 then
+    raise exception 'FAIL: % categoria(s) de insumo com product_count divergente da contagem real', bad;
+  end if;
+  raise notice 'PASS: insumo_category.product_count == contagem real de insumo_product por categoria';
+end $$;
+
+-- 15) Sequences das novas tabelas em sincronia (last_value >= max(id)) ---------
+--     As 26 tabelas usam identity com id AUTO (nenhum id forçado no seed); este
+--     check prova que as sequences avançaram com os inserts (sem drift).
+do $$
+declare t text; lv bigint; mx bigint;
+begin
+  foreach t in array array[
+    'insumo_category','insumo_product','insumo_product_tag','supplier','supplier_offer',
+    'farm_stock_item','group_buy','group_buy_participation','price_alert','insumo_purchase',
+    'vet','vet_specialty','vet_certification','vet_service','vet_availability_day',
+    'vet_appointment','vet_review',
+    'used_category','used_listing','used_saved','used_contact',
+    'video_category','vet_video','video_like','video_save','vet_follow'
+  ] loop
+    execute format('select max(id) from %I', t) into mx;
+    lv := pg_sequence_last_value(pg_get_serial_sequence(t, 'id')::regclass);
+    if mx is not null and (lv is null or lv < mx) then
+      raise exception 'FAIL: sequence de % não sincronizada (last_value=%, max(id)=%)', t, lv, mx;
+    end if;
+  end loop;
+  raise notice 'PASS: sequences das 26 tabelas novas em sincronia (id auto, sem drift)';
+end $$;
+
+-- 16) SMOKE TEST dos novos domínios (contagens do DEMO) ----------------------
+do $$
+declare
+  checks text[][] := array[
+    ['insumo_category','6'], ['insumo_product','4'], ['insumo_product_tag','9'],
+    ['supplier','11'], ['supplier_offer','11'],
+    ['farm_stock_item','5'], ['group_buy','3'], ['group_buy_participation','1'],
+    ['price_alert','3'], ['insumo_purchase','30'],
+    ['vet','4'], ['vet_specialty','12'], ['vet_certification','12'],
+    ['vet_service','15'], ['vet_availability_day','28'],
+    ['vet_appointment','1'], ['vet_review','8'],
+    ['used_category','5'], ['used_listing','5'], ['used_saved','1'], ['used_contact','1'],
+    ['video_category','5'], ['vet_video','5'], ['video_like','1'], ['video_save','1'], ['vet_follow','1']
+  ];
+  i int; t text; expected bigint; got bigint;
+begin
+  for i in 1 .. array_length(checks, 1) loop
+    t := checks[i][1];
+    expected := checks[i][2]::bigint;
+    execute format('select count(*) from %I', t) into got;
+    if got <> expected then
+      raise exception 'FAIL: % tem % linhas (esperado %)', t, got, expected;
+    end if;
+  end loop;
+
+  -- contadores autoritativos batem com o mock (representam muitos usuários) -----
+  if (select qty_current from group_buy where title = 'Vacina Febre Aftosa 100d') <> 3800
+     or (select participants_count from group_buy where title = 'Vacina Febre Aftosa 100d') <> 28 then
+    raise exception 'FAIL: contadores da compra coletiva de aftosa não batem com o mock (esperado 3800/28)';
+  end if;
+  if (select reviews_count from vet where name = 'Dr. Carlos Mendes') <> 127 then
+    raise exception 'FAIL: vet Dr. Carlos reviews_count deveria ser 127 (mock), independente das reviews semeadas';
+  end if;
+  if (select likes_count from vet_video where title = 'Vacinação contra Febre Aftosa — passo a passo completo') <> 3840 then
+    raise exception 'FAIL: vet_video likes_count deveria ser 3840 (mock), independente do like do user 1';
+  end if;
+
+  raise notice 'PASS: smoke test dos novos domínios OK (26 contagens + contadores autoritativos = mock)';
+end $$;
+
 \echo '== 04_business_invariants OK =='

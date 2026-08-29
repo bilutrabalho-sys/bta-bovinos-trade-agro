@@ -58,10 +58,18 @@ referencia). **Aplique nesta ordem:**
 | 012 | `012_monetization` | `subscription_plans`, `subscriptions`, `lot_boosts`, `services`, `platform_settings` |
 | 013 | `013_indexes` | índices de performance (não-únicos) da seção 13 do schema |
 | 014 | `014_triggers_updated_at` | os 19 `CREATE TRIGGER` de `updated_at` |
+| 015 | `015_market_source` | coluna `market_prices.source` (rótulo da fonte da cotação) — incremental |
+| 016 | `016_user_password` | coluna `users.password_hash` (login e-mail+senha) — incremental |
+| 017 | `017_insumos` | Área INSUMOS: enum `group_buy_status` + 10 tabelas (`insumo_category`, `insumo_product`, `insumo_product_tag`, `supplier`, `supplier_offer`, `farm_stock_item`, `group_buy`, `group_buy_participation`, `price_alert`, `insumo_purchase`) + 6 triggers |
+| 018 | `018_vet` | Área VET: 6 enums + 7 tabelas (`vet`, `vet_specialty`, `vet_certification`, `vet_service`, `vet_availability_day`, `vet_appointment`, `vet_review` + `ux_vet_review_appointment`) + 3 triggers |
+| 019 | `019_usados` | Área USADOS: enum `used_condition` + 4 tabelas (`used_category`, `used_listing`, `used_saved`, `used_contact`) + 1 trigger |
+| 020 | `020_videos` | Área VÍDEOS: 5 tabelas (`video_category`, `vet_video`, `video_like`, `video_save`, `vet_follow`) + 1 trigger |
+| 021 | `021_indexes_new_domains` | índices `ix_*` de performance dos novos domínios (seção 15.g) |
+| 022 | `022_counters` | funções `SECURITY DEFINER` + triggers que mantêm os contadores denormalizados dos novos domínios (`group_buy.qty_current/participants_count`, `vet.reviews_count`, `vet_video.likes_count/saves_count`) + funções de view bump (`bump_used_listing_views`, `bump_vet_video_views`) — seção 15.i |
 
-**Total: 40 tabelas.** (4 referência + 2 identidade + 4 fazendas/lotes +
+**Total: 66 tabelas.** (4 referência + 2 identidade + 4 fazendas/lotes +
 2 mercado + 5 descoberta + 6 negociação + 8 academy + 1 simulador +
-3 engajamento + 5 monetização.)
+3 engajamento + 5 monetização + 10 insumos + 7 vet + 4 usados + 5 vídeos.)
 
 ### Onde ficam os índices — decisão
 - Índices **ÚNICOS de negócio/escopo** ficam **junto da tabela** a que pertencem,
@@ -70,16 +78,28 @@ referencia). **Aplique nesta ordem:**
   - `ux_lot_images_one_cover` → migration **005**
   - `ux_market_prices_scope`, `ux_market_points_scope_date` → migration **006**
   - `ux_favorites_user_{lot,farm,opportunity,simulation,lesson}` → migration **011**
+  - `ux_vet_review_appointment` → migration **018**; uniques de junction dos novos
+    domínios (tag/oferta/adesão de insumos; saved/like/save/follow) → migrations **017–020**
 - A migration **013** contém **apenas** os índices `ix_*` de **performance**
   (não-únicos) da seção 13. Não há duplicação com as migrations anteriores.
+- A migration **021** contém **apenas** os índices `ix_*` de **performance** dos
+  novos domínios (seção 15.g). Os uniques de negócio ficam nas 017–020, sem duplicação.
 
 ---
 
 ## 3. Ordem de reversão (down)
 
-Os `down` rodam na **ordem numérica inversa**: `014 → 013 → … → 002 → 001`.
+Os `down` rodam na **ordem numérica inversa**: `022 → 021 → 020 → … → 002 → 001`.
 
 ```
+022 down  drop dos triggers/funções de contadores dos novos domínios (15.i)
+021 down  drop dos índices de performance dos novos domínios (15.g)
+020 down  drop área VÍDEOS (trigger vet_video + tabelas em ordem inversa)
+019 down  drop área USADOS (trigger + tabelas inversa + enum used_condition)
+018 down  drop área VET (triggers + ux_vet_review_appointment + tabelas inversa + 6 enums)
+017 down  drop área INSUMOS (triggers + tabelas inversa + enum group_buy_status)
+016 down  drop users.password_hash
+015 down  drop market_prices.source
 014 down  drop dos triggers
 013 down  drop dos índices de performance
 012 down  drop tabelas de monetização

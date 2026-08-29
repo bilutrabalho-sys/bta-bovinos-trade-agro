@@ -865,4 +865,759 @@ create trigger trg_lot_boosts_updated_at           before update on lot_boosts  
 create trigger trg_services_updated_at             before update on services            for each row execute function set_updated_at();
 create trigger trg_platform_settings_updated_at    before update on platform_settings   for each row execute function set_updated_at();
 
+
+-- ============================================================================
+--  15. NOVOS DOMÍNIOS — INSUMOS, VET/VetConnect, USADOS, VÍDEOS
+-- ----------------------------------------------------------------------------
+--  4 áreas hoje mockadas no frontend, agora modeladas. Classificação p/ RLS
+--  (o postgres-dba liga as policies; aqui só modelamos as colunas de posse):
+--    * CATÁLOGO PÚBLICO (admin escreve):  insumo_category, insumo_product,
+--      insumo_product_tag, supplier, supplier_offer, group_buy, used_category,
+--      video_category, vet_video, vet_specialty, vet_certification,
+--      vet_service, vet_availability_day. Leitura pública.
+--    * CONTEÚDO DO DONO (leitura pública dos vivos + escrita do dono):
+--      vet (owner_user_id, auto-claim), used_listing (seller_user_id),
+--      vet_review (author_user_id).
+--    * DADO PRIVADO DO USUÁRIO (só o dono lê/escreve, via user_id NOT NULL):
+--      farm_stock_item, group_buy_participation, price_alert, insumo_purchase,
+--      vet_appointment (sensível/financeiro), used_saved, used_contact,
+--      video_like, video_save, vet_follow.
+--  Enums no estilo idempotente (DO ... EXCEPTION duplicate_object), como nas
+--  migrations. CHECKs nomeados chk_<tabela>_<regra>. Denormalizações mantidas
+--  pela app são comentadas (padrão de farms.deals / lots.price_total).
+-- ============================================================================
+
+-- 15.a ENUMS NOVOS -----------------------------------------------------------
+do $$ begin create type vet_kind             as enum ('vet', 'clinica', 'tecnico'); exception when duplicate_object then null; end $$;
+do $$ begin create type vet_availability     as enum ('hoje', 'amanha', 'lotado'); exception when duplicate_object then null; end $$;
+do $$ begin create type agenda_status        as enum ('on', 'partial', 'off'); exception when duplicate_object then null; end $$;
+do $$ begin create type appointment_location as enum ('fazenda', 'clinica'); exception when duplicate_object then null; end $$;
+do $$ begin create type payment_method       as enum ('pix', 'cartao', 'presencial'); exception when duplicate_object then null; end $$;
+do $$ begin create type appointment_status   as enum ('pendente', 'confirmado', 'cancelado', 'concluido'); exception when duplicate_object then null; end $$;
+do $$ begin create type used_condition       as enum ('otimo', 'bom', 'regular'); exception when duplicate_object then null; end $$;
+do $$ begin create type group_buy_status     as enum ('open', 'reached', 'ordered', 'canceled'); exception when duplicate_object then null; end $$;
+
+
+-- 15.b TABELAS DE REFERÊNCIA (dimensões extensíveis por admin) ----------------
+--  Padrão de cattle_category, mas com slug = id textual estável usado pelo front
+--  ('vacinas','manejo','vacinacao'...) + label exibível + estilo (color/icon).
+
+create table insumo_category (
+  id            bigint generated always as identity primary key,
+  slug          text   not null unique,          -- id estável do front ('vacinas','manejo',...)
+  label         text   not null,                 -- rótulo exibível
+  color         text,                            -- cor de UI (hex/tailwind), opcional
+  icon          text,                            -- nome do ícone, opcional
+  product_count integer not null default 0 constraint chk_insumo_category_product_count check (product_count >= 0),
+  created_at    timestamptz not null default now()
+);
+comment on table  insumo_category is 'Categoria de insumo (referência). slug = id estável do front; leitura pública, admin escreve.';
+comment on column insumo_category.product_count is 'DERIVADO/denormalizado: nº de insumo_product na categoria. Mantido pela aplicação (padrão farms.deals).';
+
+create table used_category (
+  id         bigint generated always as identity primary key,
+  slug       text   not null unique,
+  label      text   not null,
+  icon       text,
+  created_at timestamptz not null default now()
+);
+comment on table used_category is 'Categoria de anúncio de usado (referência). slug = id estável do front; leitura pública, admin escreve.';
+
+create table video_category (
+  id         bigint generated always as identity primary key,
+  slug       text   not null unique,
+  label      text   not null,
+  icon       text,
+  created_at timestamptz not null default now()
+);
+comment on table video_category is 'Categoria de vídeo (referência). slug = id estável do front; leitura pública, admin escreve.';
+
+
+-- 15.c ÁREA 1 — INSUMOS ------------------------------------------------------
+
+-- insumo_product (catálogo, admin) ------------------------------------------
+create table insumo_product (
+  id          bigint generated always as identity primary key,
+  public_id   uuid   not null default gen_random_uuid() unique,  -- deep-link
+  category_id bigint not null references insumo_category(id) on update cascade on delete restrict,
+  name        text   not null,
+  cold_chain  boolean not null default false,     -- cadeia fria ("frio")
+  temp_range  text,                               -- faixa de temperatura, ex.: '2°C–8°C'
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+comment on table insumo_product is 'Insumo do catálogo (vacina, medicamento, manejo...). Catálogo admin; leitura pública.';
+
+-- insumo_product_tag (tags livres, normaliza tags[] como farm_specialty) -----
+create table insumo_product_tag (
+  id         bigint generated always as identity primary key,
+  product_id bigint not null references insumo_product(id) on update cascade on delete cascade,
+  tag        text   not null,
+  created_at timestamptz not null default now(),
+  unique (product_id, tag)
+);
+comment on table insumo_product_tag is 'Tags livres do insumo (1:N). Normaliza tags[] (padrão farm_specialty).';
+
+-- supplier (CONTEÚDO DO DONO + catálogo admin) ------------------------------
+create table supplier (
+  id            bigint generated always as identity primary key,
+  public_id     uuid   not null default gen_random_uuid() unique,
+  owner_user_id bigint references users(id) on update cascade on delete set null,  -- dono reivindicante; NULL = fornecedor de catálogo (admin). SET NULL: sobrevive ao user
+  name          text   not null unique,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+comment on table supplier is 'Fornecedor de insumos. CONTEÚDO DO DONO (owner_user_id) OU catálogo admin (owner NULL). Leitura pública dos ativos; escrita do dono (via RLS) ou do admin. Mesma família de used_listing/vet.';
+
+-- supplier_offer (oferta de um fornecedor p/ um produto) --------------------
+create table supplier_offer (
+  id          bigint generated always as identity primary key,
+  product_id  bigint not null references insumo_product(id) on update cascade on delete cascade,
+  supplier_id bigint not null references supplier(id)       on update cascade on delete cascade,
+  preco       numeric(12,2) not null constraint chk_supplier_offer_preco  check (preco >= 0),
+  frete       numeric(12,2) not null default 0 constraint chk_supplier_offer_frete check (frete >= 0),
+  prazo_dias  smallint constraint chk_supplier_offer_prazo check (prazo_dias is null or prazo_dias >= 0),
+  rating      numeric(3,2) constraint chk_supplier_offer_rating check (rating between 0 and 5),
+  estoque     integer  constraint chk_supplier_offer_estoque check (estoque is null or estoque >= 0),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (product_id, supplier_id)
+);
+comment on table supplier_offer is 'Oferta de um fornecedor para um insumo (preço/frete/prazo/estoque). N:1 insumo_product, N:1 supplier.';
+
+-- farm_stock_item (estoque da fazenda — DADO PRIVADO DO USUÁRIO) ------------
+create table farm_stock_item (
+  id           bigint generated always as identity primary key,
+  user_id      bigint not null references users(id)   on update cascade on delete cascade,   -- dono do estoque
+  farm_id      bigint references farms(id)            on update cascade on delete set null,
+  product_id   bigint references insumo_product(id)   on update cascade on delete set null,  -- link opcional ao catálogo
+  category_id  bigint references insumo_category(id)  on update cascade on delete set null,
+  name         text   not null,
+  quantity     numeric(12,2) not null constraint chk_farm_stock_item_quantity check (quantity >= 0),
+  unit         text   not null,
+  min_quantity numeric(12,2) not null default 0 constraint chk_farm_stock_item_min_quantity check (min_quantity >= 0),
+  lote         text,
+  validade     date,
+  local        text,
+  temperatura  numeric(4,1),
+  unit_price   numeric(12,2) constraint chk_farm_stock_item_unit_price check (unit_price is null or unit_price >= 0),
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  deleted_at   timestamptz
+);
+comment on table  farm_stock_item is 'Item de estoque da fazenda (dado privado do usuário). Alertas (crítico qty<=min, vencendo validade<=30d) são DERIVADOS por query, não colunas.';
+comment on column farm_stock_item.product_id is 'Link opcional ao catálogo (insumo_product). SET NULL: o item de estoque sobrevive à remoção do produto do catálogo.';
+
+-- group_buy (compra coletiva — PLATAFORMA/admin) ----------------------------
+create table group_buy (
+  id                 bigint generated always as identity primary key,
+  public_id          uuid   not null default gen_random_uuid() unique,  -- deep-link
+  product_id         bigint references insumo_product(id)  on update cascade on delete set null,
+  category_id        bigint references insumo_category(id) on update cascade on delete set null,
+  title              text   not null,
+  unit               text   not null,
+  qty_meta           numeric(12,2) not null constraint chk_group_buy_qty_meta check (qty_meta > 0),
+  qty_current        numeric(12,2) not null default 0 constraint chk_group_buy_qty_current check (qty_current >= 0),
+  participants_count integer not null default 0 constraint chk_group_buy_participants check (participants_count >= 0),
+  deadline           date   not null,
+  preco_base         numeric(12,2) constraint chk_group_buy_preco_base check (preco_base is null or preco_base >= 0),
+  preco_grupo        numeric(12,2) constraint chk_group_buy_preco_grupo check (preco_grupo is null or preco_grupo >= 0),
+  regiao             text,
+  status             group_buy_status not null default 'open',
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now(),
+  constraint chk_group_buy_precos check (preco_grupo is null or preco_base is null or preco_grupo <= preco_base)
+);
+comment on table  group_buy is 'Campanha de compra coletiva (plataforma/admin). A adesão do usuário é group_buy_participation.';
+comment on column group_buy.qty_current is 'DERIVADO/denormalizado: soma das adesões (group_buy_participation.quantity). Mantido pela aplicação.';
+comment on column group_buy.participants_count is 'DERIVADO/denormalizado: nº de participações. Mantido pela aplicação.';
+
+-- group_buy_participation (adesão — DADO PRIVADO DO USUÁRIO) ----------------
+create table group_buy_participation (
+  id           bigint generated always as identity primary key,
+  group_buy_id bigint not null references group_buy(id) on update cascade on delete cascade,
+  user_id      bigint not null references users(id)     on update cascade on delete cascade,
+  farm_id      bigint references farms(id)              on update cascade on delete set null,
+  quantity     numeric(12,2) not null constraint chk_group_buy_participation_quantity check (quantity > 0),
+  created_at   timestamptz not null default now(),
+  unique (group_buy_id, user_id)
+);
+comment on table group_buy_participation is 'Adesão do usuário a uma compra coletiva (dado privado). 1 adesão por (campanha, usuário).';
+
+-- price_alert (alerta de preço — DADO PRIVADO DO USUÁRIO) -------------------
+create table price_alert (
+  id            bigint generated always as identity primary key,
+  user_id       bigint not null references users(id)  on update cascade on delete cascade,
+  product_id    bigint references insumo_product(id)  on update cascade on delete set null,
+  product_name  text   not null,                       -- nome livre (funciona sem link ao catálogo)
+  target_price  numeric(12,2) not null constraint chk_price_alert_target check (target_price >= 0),
+  current_price numeric(12,2) constraint chk_price_alert_current check (current_price is null or current_price >= 0),
+  active        boolean not null default true,
+  reached       boolean not null default false,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+comment on table price_alert is 'Alerta de preço-alvo de um insumo (dado privado do usuário). product_name permite alerta sem link ao catálogo.';
+
+-- insumo_purchase (lançamento de compra — DADO PRIVADO; base dos relatórios)-
+create table insumo_purchase (
+  id           bigint generated always as identity primary key,
+  user_id      bigint not null references users(id)   on update cascade on delete cascade,
+  farm_id      bigint references farms(id)            on update cascade on delete set null,
+  product_id   bigint references insumo_product(id)   on update cascade on delete set null,
+  category_id  bigint references insumo_category(id)  on update cascade on delete set null,
+  description  text,
+  quantity     numeric(12,2) constraint chk_insumo_purchase_quantity check (quantity is null or quantity >= 0),
+  unit         text,
+  unit_price   numeric(12,2) constraint chk_insumo_purchase_unit_price check (unit_price is null or unit_price >= 0),
+  total_amount numeric(14,2) not null constraint chk_insumo_purchase_total check (total_amount >= 0),
+  purchased_at date   not null default current_date,
+  created_at   timestamptz not null default now()
+);
+comment on table  insumo_purchase is 'Lançamento de compra de insumo (dado privado). Base dos relatórios de gasto: agregados por query, NÃO guardamos totais mensais prontos.';
+comment on column insumo_purchase.total_amount is 'Total do lançamento (BRL). EXPLÍCITO (não generated): permite frete/impostos/outros além de quantity*unit_price.';
+
+
+-- 15.d ÁREA 2 — VET / VetConnect ---------------------------------------------
+--  Ordem de criação p/ FKs cruzadas: vet -> filhas -> vet_appointment ->
+--  vet_review (que referencia vet_appointment). Sem FK circular real.
+
+-- vet (catálogo + auto-claim futuro — CONTEÚDO DO DONO quando reivindicado) --
+create table vet (
+  id               bigint generated always as identity primary key,
+  public_id        uuid   not null default gen_random_uuid() unique,
+  owner_user_id    bigint references users(id) on update cascade on delete set null,  -- auto-claim futuro; vet sobrevive ao user
+  name             text   not null,
+  kind             vet_kind not null,
+  kind_label       text,                            -- rótulo livre (mock tipoLabel)
+  verified         boolean not null default false,
+  city             text,
+  uf               text   constraint chk_vet_uf check (uf is null or char_length(uf) = 2),
+  distance         numeric(7,2),                    -- referência; geo real fica p/ depois [GEO]
+  rating           numeric(3,2) constraint chk_vet_rating check (rating between 0 and 5),
+  reviews_count    integer not null default 0 constraint chk_vet_reviews_count check (reviews_count >= 0),
+  years_experience smallint constraint chk_vet_years check (years_experience is null or years_experience >= 0),
+  formacao         text,
+  photo_url        text,
+  cover_url        text,
+  price_label      text,
+  availability     vet_availability,
+  response_time    text,
+  about            text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  deleted_at       timestamptz
+);
+comment on table  vet is 'Profissional/clínica veterinária (catálogo admin com auto-claim futuro). owner_user_id nullable: o dono reivindica e edita o próprio perfil (padrão farms.owner).';
+comment on column vet.distance is 'Valor de REFERÊNCIA (geo real por usuário fica p/ depois). Mesma ressalva de lots.distance. [GEO]';
+comment on column vet.reviews_count is 'DERIVADO/denormalizado: nº de vet_review. Mantido pela aplicação.';
+
+-- vet_specialty (tags livres) -----------------------------------------------
+create table vet_specialty (
+  id         bigint generated always as identity primary key,
+  vet_id     bigint not null references vet(id) on update cascade on delete cascade,
+  specialty  text   not null,
+  created_at timestamptz not null default now(),
+  unique (vet_id, specialty)
+);
+comment on table vet_specialty is 'Especialidades do vet (tags livres, 1:N). Padrão farm_specialty.';
+
+-- vet_certification ----------------------------------------------------------
+create table vet_certification (
+  id          bigint generated always as identity primary key,
+  vet_id      bigint not null references vet(id) on update cascade on delete cascade,
+  title       text   not null,
+  institution text,
+  year_label  text,                               -- ano livre, ex.: 'válido até 2028'
+  icon        text,
+  position    smallint not null default 0,
+  created_at  timestamptz not null default now(),
+  unique (vet_id, position)
+);
+comment on table vet_certification is 'Certificações/formações do vet (ordenadas por position). 1:N.';
+
+-- vet_service (serviço ofertado; agendamento referencia isto) ----------------
+create table vet_service (
+  id             bigint generated always as identity primary key,
+  public_id      uuid   not null default gen_random_uuid() unique,
+  vet_id         bigint not null references vet(id) on update cascade on delete cascade,
+  name           text   not null,
+  price_label    text,                             -- exibição livre, ex.: 'R$ 8,00/cabeça'
+  price_amount   numeric(12,2) constraint chk_vet_service_price check (price_amount is null or price_amount >= 0),
+  price_unit     text,
+  per_head       boolean not null default false,   -- se o preço é por cabeça
+  duration_label text,
+  icon           text,
+  position       smallint not null default 0,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  unique (vet_id, position),
+  unique (id, vet_id)          -- alvo da FK composta de vet_appointment (garante serviço∈vet)
+);
+comment on table vet_service is 'Serviço ofertado por um vet. vet_appointment referencia por FK COMPOSTA (id, vet_id) p/ garantir que o serviço pertence ao vet do agendamento (RESTRICT preserva histórico).';
+
+-- vet_availability_day (agenda semanal) --------------------------------------
+create table vet_availability_day (
+  id          bigint generated always as identity primary key,
+  vet_id      bigint not null references vet(id) on update cascade on delete cascade,
+  weekday     smallint not null constraint chk_vet_availability_day_weekday check (weekday between 0 and 6),
+  day_label   text,
+  status      agenda_status,
+  hours_label text,
+  created_at  timestamptz not null default now(),
+  unique (vet_id, weekday)
+);
+comment on table vet_availability_day is 'Agenda semanal do vet (0=domingo..6=sábado). 1 linha por (vet, weekday).';
+
+-- vet_appointment (agendamento — DADO PRIVADO/FINANCEIRO/SENSÍVEL) -----------
+create table vet_appointment (
+  id             bigint generated always as identity primary key,
+  public_id      uuid   not null default gen_random_uuid() unique,
+  user_id        bigint not null references users(id)       on update cascade on delete cascade,   -- o cliente
+  vet_id         bigint not null references vet(id)         on update cascade on delete restrict,  -- preserva histórico
+  service_id     bigint not null,                           -- FK COMPOSTA (service_id, vet_id) abaixo — garante serviço∈vet
+  scheduled_at   timestamptz not null,
+  location       appointment_location not null,
+  animal_count   integer constraint chk_vet_appointment_animal_count check (animal_count is null or animal_count > 0),
+  payment_method payment_method not null,
+  subtotal       numeric(14,2) not null constraint chk_vet_appointment_subtotal check (subtotal >= 0),
+  travel_fee     numeric(14,2) not null default 0 constraint chk_vet_appointment_travel_fee check (travel_fee >= 0),
+  pix_discount   numeric(14,2) not null default 0 constraint chk_vet_appointment_pix_discount check (pix_discount >= 0),
+  total          numeric(14,2) generated always as (subtotal + travel_fee - pix_discount) stored,
+  status         appointment_status not null default 'pendente',
+  notes          text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  deleted_at     timestamptz,
+  constraint chk_vet_appointment_total_nonneg check (subtotal + travel_fee - pix_discount >= 0),  -- desconto pix nunca > (subtotal+frete)
+  constraint fk_vet_appointment_service foreign key (service_id, vet_id)
+    references vet_service (id, vet_id) on update cascade on delete restrict  -- serviço DEVE pertencer ao vet do agendamento
+);
+comment on table  vet_appointment is 'Agendamento veterinário — a tabela MAIS SENSÍVEL do domínio (dado financeiro/pessoal do usuário). FK RESTRICT p/ vet e vet_service preserva o histórico financeiro.';
+comment on column vet_appointment.total is 'DENORMALIZADO (generated stored) = subtotal + travel_fee - pix_discount. Dinheiro canônico do agendamento (padrão dos generated do projeto).';
+
+-- vet_review (avaliação — CONTEÚDO DO DONO/AUTOR; leitura pública) -----------
+--  Criada APÓS vet_appointment (FK appointment_id) — sem circularidade real.
+create table vet_review (
+  id             bigint generated always as identity primary key,
+  vet_id         bigint not null references vet(id)             on update cascade on delete cascade,
+  author_user_id bigint references users(id)                   on update cascade on delete set null,
+  appointment_id bigint references vet_appointment(id)         on update cascade on delete set null,
+  author_name    text,
+  review_date    date,
+  rating         smallint not null constraint chk_vet_review_rating check (rating between 1 and 5),
+  comment        text,
+  service_label  text,
+  created_at     timestamptz not null default now()
+);
+-- 1 review por agendamento (quando vinculado); múltiplos NULL não conflitam.
+create unique index ux_vet_review_appointment on vet_review (appointment_id) where appointment_id is not null;
+comment on table vet_review is 'Avaliação de um vet. Leitura pública; escrita do autor (RLS pelo DBA). 1 review por vet_appointment quando vinculada.';
+
+
+-- 15.e ÁREA 3 — USADOS -------------------------------------------------------
+
+-- used_listing (anúncio de usado — CONTEÚDO DO DONO; leitura pública) --------
+create table used_listing (
+  id             bigint generated always as identity primary key,
+  public_id      uuid   not null default gen_random_uuid() unique,  -- deep-link
+  seller_user_id bigint references users(id)              on update cascade on delete set null,  -- dono; anúncio sobrevive ao user (e p/ seed)
+  category_id    bigint not null references used_category(id) on update cascade on delete restrict,
+  title          text   not null,
+  price          numeric(14,2) not null constraint chk_used_listing_price check (price >= 0),
+  condition      used_condition,
+  city           text,
+  uf             text   constraint chk_used_listing_uf check (uf is null or char_length(uf) = 2),
+  distance       numeric(7,2),                    -- referência [GEO]
+  photo_url      text,
+  description    text,
+  views          integer not null default 0 constraint chk_used_listing_views check (views >= 0),
+  seller_name    text,                            -- nome livre (mock) quando sem user vinculado
+  seller_rating  numeric(3,2) constraint chk_used_listing_seller_rating check (seller_rating between 0 and 5),
+  featured       boolean not null default false,  -- destaque
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  deleted_at     timestamptz
+);
+comment on table  used_listing is 'Anúncio de equipamento/insumo usado (conteúdo do dono). Leitura pública dos vivos; escrita do dono (RLS pelo DBA). seller_user_id nullable p/ seed e p/ sobreviver à exclusão do dono.';
+comment on column used_listing.views is 'DERIVADO/denormalizado: nº de visualizações. Mantido pela aplicação.';
+
+-- used_saved (salvos — DADO PRIVADO DO USUÁRIO) -----------------------------
+create table used_saved (
+  id         bigint generated always as identity primary key,
+  user_id    bigint not null references users(id)        on update cascade on delete cascade,
+  listing_id bigint not null references used_listing(id) on update cascade on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, listing_id)
+);
+comment on table used_saved is 'Anúncio de usado salvo pelo usuário (dado privado). 1 por (usuário, anúncio). Hard delete.';
+
+-- used_contact (contato registrado — DADO PRIVADO DO USUÁRIO) ---------------
+create table used_contact (
+  id         bigint generated always as identity primary key,
+  user_id    bigint not null references users(id)        on update cascade on delete cascade,
+  listing_id bigint not null references used_listing(id) on update cascade on delete cascade,
+  message    text,
+  created_at timestamptz not null default now()
+);
+comment on table used_contact is 'Contato do usuário com o anunciante (dado privado). Pode repetir (sem unique). Hard delete.';
+
+
+-- 15.f ÁREA 4 — VÍDEOS -------------------------------------------------------
+
+-- vet_video (catálogo de vídeos, admin; autor opcional em vet) ---------------
+create table vet_video (
+  id                bigint generated always as identity primary key,
+  public_id         uuid   not null default gen_random_uuid() unique,  -- deep-link
+  category_id       bigint not null references video_category(id) on update cascade on delete restrict,
+  vet_id            bigint references vet(id)                     on update cascade on delete set null,  -- autor se existir no catálogo de vets
+  author_name       text,                            -- ex.: 'Dr. Fernando Melo'
+  author_credential text,                            -- ex.: CRMV
+  title             text   not null,
+  description       text,
+  thumb_url         text,
+  video_url         text,
+  duration_label    text,                            -- ex.: '14:32'
+  duration_seconds  integer constraint chk_vet_video_duration check (duration_seconds is null or duration_seconds >= 0),
+  views             integer not null default 0 constraint chk_vet_video_views check (views >= 0),
+  likes_count       integer not null default 0 constraint chk_vet_video_likes check (likes_count >= 0),
+  saves_count       integer not null default 0 constraint chk_vet_video_saves check (saves_count >= 0),
+  featured          boolean not null default false,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+  deleted_at        timestamptz
+);
+comment on table  vet_video is 'Vídeo educativo do catálogo (admin). Leitura pública. vet_id liga ao autor no catálogo de vets (SET NULL se o vet sair).';
+comment on column vet_video.views is 'DERIVADO/denormalizado (views/likes_count/saves_count): stats mantidos pela aplicação.';
+
+-- video_like (DADO PRIVADO DO USUÁRIO) --------------------------------------
+create table video_like (
+  id         bigint generated always as identity primary key,
+  user_id    bigint not null references users(id)     on update cascade on delete cascade,
+  video_id   bigint not null references vet_video(id) on update cascade on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, video_id)
+);
+comment on table video_like is 'Like do usuário em um vídeo (dado privado). 1 por (usuário, vídeo). Hard delete.';
+
+-- video_save (DADO PRIVADO DO USUÁRIO) --------------------------------------
+create table video_save (
+  id         bigint generated always as identity primary key,
+  user_id    bigint not null references users(id)     on update cascade on delete cascade,
+  video_id   bigint not null references vet_video(id) on update cascade on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, video_id)
+);
+comment on table video_save is 'Vídeo salvo pelo usuário (dado privado). 1 por (usuário, vídeo). Hard delete.';
+
+-- vet_follow (seguir vet — DADO PRIVADO DO USUÁRIO) -------------------------
+create table vet_follow (
+  id         bigint generated always as identity primary key,
+  user_id    bigint not null references users(id) on update cascade on delete cascade,
+  vet_id     bigint not null references vet(id)   on update cascade on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, vet_id)
+);
+comment on table vet_follow is 'Usuário segue um vet (dado privado). 1 por (usuário, vet). Hard delete (padrão follows).';
+
+
+-- 15.g ÍNDICES DE PERFORMANCE (novos domínios) -------------------------------
+--  Cobrem os filtros/joins do app. OMITIDOS de propósito os índices
+--  single-column cuja coluna já é LÍDER de um UNIQUE composto (redundantes,
+--  como o dba_hardening documenta): supplier_offer(product_id) [ux product_id,
+--  supplier_id]; group_buy_participation(group_buy_id) [ux group_buy_id,
+--  user_id]; vet_service(vet_id) [ux vet_id, position]; used_saved(user_id),
+--  video_like(user_id), video_save(user_id), vet_follow(user_id) [ux user_id,
+--  <alvo>]. Indexamos apenas a coluna NÃO-líder de cada junction.
+
+-- Insumos
+create index ix_insumo_product_category      on insumo_product (category_id);
+create index ix_supplier_owner               on supplier (owner_user_id);   -- "meu perfil de fornecedor" (dono)
+create index ix_supplier_offer_supplier      on supplier_offer (supplier_id);
+create index ix_farm_stock_item_user         on farm_stock_item (user_id);
+create index ix_farm_stock_item_validade     on farm_stock_item (validade);
+create index ix_group_buy_status             on group_buy (status);
+create index ix_group_buy_deadline           on group_buy (deadline);
+create index ix_group_buy_participation_user on group_buy_participation (user_id);
+create index ix_price_alert_user             on price_alert (user_id);
+create index ix_insumo_purchase_user_date    on insumo_purchase (user_id, purchased_at);
+
+-- Vet
+create index ix_vet_uf                       on vet (uf);
+create index ix_vet_kind                     on vet (kind);
+create index ix_vet_owner                    on vet (owner_user_id);
+create index ix_vet_appointment_user         on vet_appointment (user_id);
+create index ix_vet_appointment_vet          on vet_appointment (vet_id);
+create index ix_vet_appointment_scheduled    on vet_appointment (scheduled_at);
+create index ix_vet_review_vet               on vet_review (vet_id);
+create index ix_vet_review_author            on vet_review (author_user_id);
+
+-- Usados
+create index ix_used_listing_category        on used_listing (category_id);
+create index ix_used_listing_uf              on used_listing (uf);
+create index ix_used_listing_featured        on used_listing (featured);
+create index ix_used_listing_seller          on used_listing (seller_user_id);
+create index ix_used_saved_listing           on used_saved (listing_id);
+create index ix_used_contact_user            on used_contact (user_id);
+create index ix_used_contact_listing         on used_contact (listing_id);
+
+-- Vídeos
+create index ix_vet_video_category           on vet_video (category_id);
+create index ix_vet_video_vet                on vet_video (vet_id);
+create index ix_vet_video_featured           on vet_video (featured);
+create index ix_video_like_video             on video_like (video_id);
+create index ix_video_save_video             on video_save (video_id);
+create index ix_vet_follow_vet               on vet_follow (vet_id);
+
+
+-- 15.h TRIGGERS DE updated_at (novas tabelas mutáveis) -----------------------
+create trigger trg_insumo_product_updated_at  before update on insumo_product  for each row execute function set_updated_at();
+create trigger trg_supplier_updated_at        before update on supplier        for each row execute function set_updated_at();
+create trigger trg_supplier_offer_updated_at  before update on supplier_offer  for each row execute function set_updated_at();
+create trigger trg_farm_stock_item_updated_at before update on farm_stock_item for each row execute function set_updated_at();
+create trigger trg_group_buy_updated_at       before update on group_buy       for each row execute function set_updated_at();
+create trigger trg_price_alert_updated_at     before update on price_alert     for each row execute function set_updated_at();
+create trigger trg_vet_updated_at             before update on vet             for each row execute function set_updated_at();
+create trigger trg_vet_service_updated_at     before update on vet_service     for each row execute function set_updated_at();
+create trigger trg_vet_appointment_updated_at before update on vet_appointment for each row execute function set_updated_at();
+create trigger trg_used_listing_updated_at    before update on used_listing    for each row execute function set_updated_at();
+create trigger trg_vet_video_updated_at       before update on vet_video       for each row execute function set_updated_at();
+
+
+-- 15.i MANUTENÇÃO DE CONTADORES DENORMALIZADOS (SECURITY DEFINER) -------------
+--  PROBLEMA: os contadores denormalizados abaixo são incrementados por uma
+--  AÇÃO DE OUTRO USUÁRIO (ou por não-donos), e o modelo de segurança (RLS de
+--  dono + DML de catálogo revogado de bta_app no dba_hardening) BLOQUEIA essa
+--  escrita — se deixássemos a app fazê-la, os contadores travariam em zero OU
+--  seria preciso afrouxar a RLS (reabrindo o buraco).
+--  SOLUÇÃO: funções SECURITY DEFINER (rodam como o OWNER das tabelas, que NÃO é
+--  sujeito a RLS e tem DML pleno). `search_path = public` fixo evita sequestro
+--  de search_path (boa prática obrigatória em SECURITY DEFINER). São o ÚNICO
+--  caminho de escrita nesses contadores — a app só dispara os inserts/deletes
+--  nas tabelas-filhas (que a RLS já autoriza para o dono).
+--
+--  Contadores mantidos:
+--    group_buy.qty_current / participants_count   <- group_buy_participation
+--    vet.reviews_count                            <- vet_review
+--    vet_video.likes_count                        <- video_like
+--    vet_video.saves_count                        <- video_save
+--    used_listing.views / vet_video.views         <- funções de "view bump" (a app chama)
+
+-- group_buy: adesões somam quantidade e nº de participantes -------------------
+create or replace function trg_group_buy_participation_counts()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update group_buy
+       set qty_current        = qty_current + new.quantity,
+           participants_count = participants_count + 1
+     where id = new.group_buy_id;
+    return new;
+  elsif tg_op = 'UPDATE' then
+    -- só a quantidade muda na prática (group_buy_id é estável); ajusta o delta.
+    update group_buy
+       set qty_current = greatest(0, qty_current - old.quantity + new.quantity)
+     where id = new.group_buy_id;
+    return new;
+  else -- DELETE
+    update group_buy
+       set qty_current        = greatest(0, qty_current - old.quantity),
+           participants_count = greatest(0, participants_count - 1)
+     where id = old.group_buy_id;
+    return old;
+  end if;
+end;
+$$;
+comment on function trg_group_buy_participation_counts() is
+  'SECURITY DEFINER: mantém group_buy.qty_current/participants_count a partir de group_buy_participation (a app não tem DML no catálogo group_buy).';
+
+create trigger trg_gbp_counts
+  after insert or update or delete on group_buy_participation
+  for each row execute function trg_group_buy_participation_counts();
+
+-- vet.reviews_count a partir de vet_review -----------------------------------
+create or replace function trg_vet_reviews_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update vet set reviews_count = reviews_count + 1 where id = new.vet_id;
+    return new;
+  else -- DELETE
+    update vet set reviews_count = greatest(0, reviews_count - 1) where id = old.vet_id;
+    return old;
+  end if;
+end;
+$$;
+comment on function trg_vet_reviews_count() is
+  'SECURITY DEFINER: mantém vet.reviews_count a partir de vet_review (o autor da review não é o dono do vet; a RLS de escrita de vet negaria o UPDATE).';
+
+create trigger trg_vet_review_count
+  after insert or delete on vet_review
+  for each row execute function trg_vet_reviews_count();
+
+-- vet_video.likes_count / saves_count a partir de video_like / video_save ----
+create or replace function trg_video_like_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update vet_video set likes_count = likes_count + 1 where id = new.video_id;
+    return new;
+  else
+    update vet_video set likes_count = greatest(0, likes_count - 1) where id = old.video_id;
+    return old;
+  end if;
+end;
+$$;
+comment on function trg_video_like_count() is
+  'SECURITY DEFINER: mantém vet_video.likes_count a partir de video_like (vet_video é catálogo; app sem DML).';
+
+create trigger trg_video_like_count_t
+  after insert or delete on video_like
+  for each row execute function trg_video_like_count();
+
+create or replace function trg_video_save_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update vet_video set saves_count = saves_count + 1 where id = new.video_id;
+    return new;
+  else
+    update vet_video set saves_count = greatest(0, saves_count - 1) where id = old.video_id;
+    return old;
+  end if;
+end;
+$$;
+comment on function trg_video_save_count() is
+  'SECURITY DEFINER: mantém vet_video.saves_count a partir de video_save.';
+
+create trigger trg_video_save_count_t
+  after insert or delete on video_save
+  for each row execute function trg_video_save_count();
+
+-- insumo_category.product_count a partir de insumo_product --------------------
+--  product_count é o nº de produtos do catálogo por categoria (badge "N itens").
+--  insumo_product é catálogo admin; ambas as tabelas são escritas por admin, mas
+--  usamos SECURITY DEFINER por consistência (e p/ o caso de manutenção via app).
+create or replace function trg_insumo_product_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    update insumo_category set product_count = product_count + 1 where id = new.category_id;
+    return new;
+  elsif tg_op = 'DELETE' then
+    update insumo_category set product_count = greatest(0, product_count - 1) where id = old.category_id;
+    return old;
+  else -- UPDATE: produto trocou de categoria
+    if new.category_id is distinct from old.category_id then
+      update insumo_category set product_count = greatest(0, product_count - 1) where id = old.category_id;
+      update insumo_category set product_count = product_count + 1              where id = new.category_id;
+    end if;
+    return new;
+  end if;
+end;
+$$;
+comment on function trg_insumo_product_count() is
+  'SECURITY DEFINER: mantém insumo_category.product_count = nº de insumo_product da categoria. Substitui o set manual do seed.';
+
+create trigger trg_insumo_product_count_t
+  after insert or update or delete on insumo_product
+  for each row execute function trg_insumo_product_count();
+
+-- vet_review: só após agendamento CONCLUÍDO (anti-spam + fecha furo #2) --------
+--  Um usuário só pode avaliar um vet se tiver um vet_appointment 'concluido'
+--  DELE (author_user_id) para AQUELE vet, referenciado por appointment_id — o
+--  que também garante que o appointment pertence ao mesmo vet da review (furo #2
+--  do QA). Reviews CURADAS pelo admin/seed (author_user_id NULL) são permitidas
+--  (catálogo). SECURITY DEFINER p/ ler vet_appointment de forma confiável apesar
+--  da RLS (a checagem confere user_id = author explicitamente).
+create or replace function trg_vet_review_requires_completed_appt()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.author_user_id is null then
+    return new;  -- review curada por admin/seed
+  end if;
+  if new.appointment_id is null then
+    raise exception 'vet_review: avaliacao de usuario exige appointment_id de um agendamento CONCLUIDO (anti-spam).'
+      using errcode = 'check_violation';
+  end if;
+  if not exists (
+    select 1 from vet_appointment a
+    where a.id = new.appointment_id
+      and a.user_id = new.author_user_id
+      and a.vet_id  = new.vet_id
+      and a.status  = 'concluido'
+      and a.deleted_at is null
+  ) then
+    raise exception 'vet_review: appointment % nao e um agendamento CONCLUIDO do autor % para o vet % (anti-spam / furo #2).',
+      new.appointment_id, new.author_user_id, new.vet_id
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+comment on function trg_vet_review_requires_completed_appt() is
+  'SECURITY DEFINER: só permite vet_review de usuário (author_user_id NOT NULL) se houver vet_appointment concluído do mesmo autor para o mesmo vet (anti-spam + garante vet do appointment = vet da review).';
+
+create trigger trg_vet_review_requires_appt
+  before insert on vet_review
+  for each row execute function trg_vet_review_requires_completed_appt();
+
+-- VIEW BUMP: contagem de visualizações (a app chama; não há tabela-filha) -----
+--  used_listing.views e vet_video.views crescem quando QUALQUER usuário abre o
+--  item — quem vê não é o dono, então a RLS/privilégio negaria o UPDATE direto.
+--  Expostas como funções SECURITY DEFINER que só incrementam +1 uma linha viva.
+--  REVOKE de PUBLIC + GRANT a bta_app/bta_admin (privilégio mínimo).
+create or replace function bump_used_listing_views(p_id bigint)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update used_listing set views = views + 1 where id = p_id and deleted_at is null;
+$$;
+comment on function bump_used_listing_views(bigint) is
+  'SECURITY DEFINER: incrementa used_listing.views (+1) de um anúncio vivo. Único caminho da app para contar visualização (RLS de escrita é do dono).';
+
+create or replace function bump_vet_video_views(p_id bigint)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update vet_video set views = views + 1 where id = p_id and deleted_at is null;
+$$;
+comment on function bump_vet_video_views(bigint) is
+  'SECURITY DEFINER: incrementa vet_video.views (+1) de um vídeo vivo. Único caminho da app (vet_video é catálogo, sem DML p/ bta_app).';
+
+--  NOTA: por padrão, funções nascem com EXECUTE para PUBLIC — logo bta_app já
+--  consegue chamar bump_used_listing_views/bump_vet_video_views. O endurecimento
+--  de privilégio mínimo (REVOKE de PUBLIC + GRANT só a bta_app/bta_admin) fica em
+--  dba_hardening.sql (seção 7d), pois lá os roles já existem (schema.sql/migrations
+--  rodam ANTES da criação dos roles).
+
 -- FIM do schema.sql

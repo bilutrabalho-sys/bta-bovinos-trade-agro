@@ -67,6 +67,25 @@ $$;
 comment on function app_owns_farm(bigint) is
   'True se a farm fid pertence ao usuário logado. Usada nas políticas de lots/proposals/transactions.';
 
+-- app_owns_vet(): análoga a app_owns_farm, para o lado "profissional" das
+-- policies do domínio veterinário (auto-claim). True quando o vet vid tem
+-- owner_user_id = usuário logado. Vet seedado por admin tem owner_user_id NULL
+-- -> a comparação NULL = <id> devolve NULL -> exists=false (não vaza p/ anônimo
+-- nem p/ terceiros). Usada na RLS bilateral de vet_appointment.
+create or replace function app_owns_vet(vid bigint)
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1 from vet v
+    where v.id = vid
+      and v.owner_user_id = app_current_user_id()
+  )
+$$;
+comment on function app_owns_vet(bigint) is
+  'True se o vet vid pertence ao usuário logado (auto-claim). Usada na policy bilateral de vet_appointment (lado do profissional dono do perfil).';
+
 
 -- ============================================================================
 --  2. ÍNDICES ADICIONAIS (parciais "vivos", compostos por padrão de acesso,
@@ -167,6 +186,85 @@ create index if not exists ix_opportunities_global
 create index if not exists ix_lot_boosts_active
   on lot_boosts (lot_id)
   where status = 'active';
+
+-- --- SEÇÃO 15 — NOVOS DOMÍNIOS (insumos, vet, usados, vídeos) ----------------
+--  Só ADICIONAMOS aqui o que a subseção 15.g do schema.sql NÃO cobriu: índices
+--  PARCIAIS "vivos" (feed público filtra deleted_at is null) e de BUSCA (trgm).
+--  Os ix_* single-column de FK/filtro já existem no schema base — não repetir.
+
+-- USED_LISTING: feed público de usados (só vivos). O schema já tem os índices
+-- cheios (category/uf/featured/seller); estes PARCIAIS indexam só as linhas do
+-- feed (deleted_at is null), ficando menores e mais baratos de manter.
+create index if not exists ix_used_listing_pub_cat
+  on used_listing (category_id)
+  where deleted_at is null;
+create index if not exists ix_used_listing_pub_created
+  on used_listing (created_at desc)
+  where deleted_at is null;
+-- Destaques do feed (poucas linhas): índice minúsculo p/ a faixa "em destaque".
+create index if not exists ix_used_listing_pub_featured
+  on used_listing (created_at desc)
+  where deleted_at is null and featured;
+-- Busca do feed é ILIKE '%termo%' sobre o título -> GIN trigram.
+-- TRADE-OFF: acelera muito o ILIKE, mas GIN trgm é o índice mais CARO de manter
+-- em escrita (cada INSERT/UPDATE de title reescreve vários postings). Justifica
+-- porque a busca de usados é caminho de tela e o volume de escrita é baixo.
+create index if not exists ix_used_listing_title_trgm
+  on used_listing using gin (title gin_trgm_ops)
+  where deleted_at is null;
+
+-- VET: diretório público (só vivos). Filtro típico = UF + tipo (vet/clínica).
+create index if not exists ix_vet_pub_uf_kind
+  on vet (uf, kind)
+  where deleted_at is null;
+-- Busca por nome e por cidade é ILIKE -> trigram. Mesmo TRADE-OFF do acima
+-- (GIN trgm custa escrita); catálogo de vets muda pouco, então compensa.
+create index if not exists ix_vet_name_trgm
+  on vet using gin (name gin_trgm_ops)
+  where deleted_at is null;
+create index if not exists ix_vet_city_trgm
+  on vet using gin (city gin_trgm_ops)
+  where deleted_at is null and city is not null;
+
+-- VET_VIDEO: feed de vídeos por categoria (só vivos) + destaques.
+create index if not exists ix_vet_video_pub_cat
+  on vet_video (category_id, created_at desc)
+  where deleted_at is null;
+create index if not exists ix_vet_video_pub_featured
+  on vet_video (created_at desc)
+  where deleted_at is null and featured;
+
+-- FARM_STOCK_ITEM: "meu estoque" (dado privado) e o alerta "vencendo em 30d".
+-- O schema tem ix_farm_stock_item_user/_validade cheios; estes PARCIAIS vivos
+-- servem exatamente as duas queries de tela e ignoram itens soft-deletados.
+create index if not exists ix_farm_stock_item_user_live
+  on farm_stock_item (user_id)
+  where deleted_at is null;
+-- Alerta de validade: WHERE user_id=eu AND validade <= hoje+30 (só vivos c/ data).
+create index if not exists ix_farm_stock_item_validade_live
+  on farm_stock_item (user_id, validade)
+  where deleted_at is null and validade is not null;
+
+-- GROUP_BUY: campanhas ABERTAS ordenadas por prazo (as que aparecem na tela).
+-- Parcial where status='open' -> índice pequeno; expiradas/canceladas ficam fora.
+create index if not exists ix_group_buy_open_deadline
+  on group_buy (deadline)
+  where status = 'open';
+
+-- INSUMO_PRODUCT: busca do marketplace por nome (ILIKE) -> trigram.
+-- TRADE-OFF: GIN trgm custa escrita, mas catálogo de insumos é quase estático
+-- (admin) e a busca é caminho de tela -> compensa.
+create index if not exists ix_insumo_product_name_trgm
+  on insumo_product using gin (name gin_trgm_ops);
+
+-- VET_APPOINTMENT: "minha agenda" (cliente) e a agenda do profissional (dono do
+-- vet), sempre por data. Parciais vivos servem os dois lados da RLS bilateral.
+create index if not exists ix_vet_appointment_user_sched_live
+  on vet_appointment (user_id, scheduled_at)
+  where deleted_at is null;
+create index if not exists ix_vet_appointment_vet_sched_live
+  on vet_appointment (vet_id, scheduled_at)
+  where deleted_at is null;
 
 
 -- ============================================================================
@@ -452,6 +550,137 @@ create policy rls_read on opportunities for select
 
 
 -- ============================================================================
+--  6b. RLS DOS NOVOS DOMÍNIOS (SEÇÃO 15: insumos, vet, usados, vídeos)
+-- ----------------------------------------------------------------------------
+--  Mesma mecânica da seção 6: o backend faz SET LOCAL app.current_user_id por
+--  transação; owner das tabelas e roles BYPASSRLS (bta_admin/bta_readonly) não
+--  são filtrados -> seed/admin/BI seguem funcionando. Sem FORCE.
+--  Classificação (decidida pelo líder):
+--    A) DADO PRIVADO (user_id NOT NULL = eu): CRUD só do dono.
+--    B) vet_appointment: DUAS PARTES (cliente OU dono do vet, via auto-claim).
+--    C) CONTEÚDO DO DONO: leitura pública dos vivos + escrita do dono.
+--  CATÁLOGOS (insumo_*, supplier*, group_buy, *_category, vet_video e as
+--  FILHAS de exibição do vet) NÃO recebem RLS — são públicos na leitura; a
+--  escrita é barrada por REVOKE de DML em bta_app (seção 7c), sobrando admin.
+-- ============================================================================
+
+-- ---- GRUPO A: dado privado do usuário (user_id NOT NULL) -------------------
+--  Cada linha tem dono (user_id); a app só enxerga/altera as próprias linhas.
+--  Anônimo (GUC não setado -> app_current_user_id()=NULL) não casa nada.
+alter table farm_stock_item         enable row level security;
+alter table group_buy_participation enable row level security;
+alter table price_alert             enable row level security;
+alter table insumo_purchase         enable row level security;
+alter table used_saved              enable row level security;
+alter table used_contact            enable row level security;
+alter table video_like              enable row level security;
+alter table video_save              enable row level security;
+alter table vet_follow              enable row level security;
+
+drop policy if exists rls_owner on farm_stock_item;
+create policy rls_owner on farm_stock_item for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on group_buy_participation;
+create policy rls_owner on group_buy_participation for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on price_alert;
+create policy rls_owner on price_alert for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on insumo_purchase;
+create policy rls_owner on insumo_purchase for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on used_saved;
+create policy rls_owner on used_saved for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on used_contact;
+create policy rls_owner on used_contact for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on video_like;
+create policy rls_owner on video_like for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on video_save;
+create policy rls_owner on video_save for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+drop policy if exists rls_owner on vet_follow;
+create policy rls_owner on vet_follow for all
+  using (user_id = app_current_user_id())
+  with check (user_id = app_current_user_id());
+
+-- ---- GRUPO B: vet_appointment (duas partes — a tabela MAIS sensível) --------
+--  Contém dado financeiro (subtotal/total/payment_method) e pessoal (notes) do
+--  usuário -> RLS bilateral: só o CLIENTE (user_id = eu) OU o DONO DO VET
+--  (auto-claim, via app_owns_vet) leem/escrevem. Vet seedado por admin tem
+--  owner_user_id NULL -> app_owns_vet=false -> só o cliente vê (correto p/ MVP;
+--  quando o profissional reivindicar o perfil, passa a ver a própria agenda).
+--  Uma única policy FOR ALL cobre SELECT/INSERT/UPDATE/DELETE (using = with
+--  check) — igual ao padrão rls_party de proposals/transactions.
+alter table vet_appointment enable row level security;
+drop policy if exists rls_party on vet_appointment;
+create policy rls_party on vet_appointment for all
+  using (user_id = app_current_user_id() or app_owns_vet(vet_id))
+  with check (user_id = app_current_user_id() or app_owns_vet(vet_id));
+
+-- ---- GRUPO C: conteúdo do dono (leitura pública dos vivos, escrita do dono) -
+--  Padrão idêntico a lots/farms (seção 6): uma policy FOR SELECT (leitura
+--  pública) + uma policy FOR ALL (escrita do dono). Em SELECT as duas policies
+--  permissivas se somam (OR); em INSERT/UPDATE/DELETE só a FOR ALL vale.
+alter table used_listing enable row level security;
+alter table vet          enable row level security;
+alter table vet_review   enable row level security;
+
+-- used_listing (dono = seller_user_id): feed público dos vivos; o dono vê os
+-- próprios mesmo soft-deletados; escrita só do dono. seller_user_id é nullable
+-- (anúncio seedado/órfão) -> quando NULL a escrita da app é negada (NULL = id
+-- -> NULL): esses ficam a cargo do admin.
+drop policy if exists rls_public_read on used_listing;
+create policy rls_public_read on used_listing for select
+  using (deleted_at is null or seller_user_id = app_current_user_id());
+drop policy if exists rls_owner_write on used_listing;
+create policy rls_owner_write on used_listing for all
+  using (seller_user_id = app_current_user_id())
+  with check (seller_user_id = app_current_user_id());
+
+-- vet (dono = owner_user_id): leitura pública dos vivos; escrita só do dono
+-- reivindicante. Vets seedados por admin (owner_user_id NULL) NÃO são editáveis
+-- pela app -> só admin (BYPASSRLS). Correto p/ MVP (auto-claim ainda não ligado).
+drop policy if exists rls_public_read on vet;
+create policy rls_public_read on vet for select
+  using (deleted_at is null or owner_user_id = app_current_user_id());
+drop policy if exists rls_owner_write on vet;
+create policy rls_owner_write on vet for all
+  using (owner_user_id = app_current_user_id())
+  with check (owner_user_id = app_current_user_id());
+
+-- vet_review (autor = author_user_id): reviews são PÚBLICAS (qualquer um lê),
+-- mas só o AUTOR cria/edita/apaga a sua. O with check nega author_user_id NULL
+-- (NULL = id -> NULL -> falha) -> a app não forja review anônima nem em nome de
+-- terceiro; reviews seedadas ficam a cargo do admin (BYPASSRLS).
+drop policy if exists rls_public_read on vet_review;
+create policy rls_public_read on vet_review for select
+  using (true);
+drop policy if exists rls_author_write on vet_review;
+create policy rls_author_write on vet_review for all
+  using (author_user_id = app_current_user_id())
+  with check (author_user_id = app_current_user_id());
+
+
+-- ============================================================================
 --  7. ROLES E GRANTS (privilégio mínimo)
 -- ----------------------------------------------------------------------------
 --  Criamos roles-GRUPO (NOLOGIN). Os usuários de login reais são criados
@@ -564,6 +793,67 @@ grant select on v_users_public to bta_app, bta_readonly;
 
 
 -- ============================================================================
+--  7c. CATÁLOGO GRAVÁVEL SÓ POR ADMIN (novos domínios da seção 15)
+-- ----------------------------------------------------------------------------
+--  Requisito não-negociável do usuário: os CATÁLOGOS (categorias, produtos,
+--  fornecedores/ofertas, campanhas de compra coletiva, vídeos e as FILHAS de
+--  EXIBIÇÃO do vet) são LIDOS por todos, mas só o ADMIN escreve. Estas tabelas
+--  NÃO têm RLS (leitura pública), então a barreira de escrita é por GRANT:
+--  REVOGAMOS insert/update/delete de bta_app (mantendo o SELECT). Mesmo modelo
+--  do `revoke ... on platform_settings from bta_app` acima.
+--
+--  Por que fica AQUI (depois dos grants amplos da seção 7): o `grant select,
+--  insert, update, delete on all tables ... to bta_app` já concedeu DML em TODAS
+--  as tabelas; este revoke DESFAZ nas de catálogo. Precisa vir depois, senão o
+--  grant amplo reconcederia. Os `alter default privileges` da seção 7 só valem
+--  p/ tabelas FUTURAS, então NÃO reconcedem sobre estas já existentes.
+--  bta_admin (BYPASSRLS) continua com DML pleno -> só ele semeia/edita catálogo.
+--
+--  Filhas do vet: quando o AUTO-CLAIM for ligado, dá p/ reconceder DML de
+--  vet_specialty/certification/service/availability_day ao DONO via RLS
+--  (using/with check = app_owns_vet(vet_id)); por ora é admin-only (MVP seguro).
+revoke insert, update, delete on
+    insumo_category,
+    insumo_product,
+    insumo_product_tag,
+    supplier,
+    supplier_offer,
+    group_buy,
+    used_category,
+    video_category,
+    vet_video,
+    vet_specialty,
+    vet_certification,
+    vet_service,
+    vet_availability_day
+  from bta_app;
+
+
+-- ============================================================================
+--  7d. FUNÇÕES DE VIEW BUP (SECURITY DEFINER) — PRIVILÉGIO MÍNIMO
+-- ----------------------------------------------------------------------------
+--  bump_used_listing_views/bump_vet_video_views (definidas em schema.sql 15.i /
+--  migration 022) são o ÚNICO caminho da app para contar visualização de
+--  anúncio/vídeo (a escrita direta é barrada por RLS de dono / DML de catálogo
+--  revogado). Como toda função nasce com EXECUTE para PUBLIC, aqui aplicamos
+--  privilégio mínimo: REVOKE de PUBLIC + GRANT só a bta_app/bta_admin. As demais
+--  funções da 15.i são SÓ de trigger (não chamáveis diretamente) e não precisam
+--  de grant. DO-guard: só age se as funções já existirem (schema/migrations
+--  rodam antes deste arquivo, então normalmente existem).
+do $$
+begin
+  if exists (select 1 from pg_proc where proname = 'bump_used_listing_views') then
+    execute 'revoke all on function bump_used_listing_views(bigint) from public';
+    execute 'grant execute on function bump_used_listing_views(bigint) to bta_app, bta_admin';
+  end if;
+  if exists (select 1 from pg_proc where proname = 'bump_vet_video_views') then
+    execute 'revoke all on function bump_vet_video_views(bigint) from public';
+    execute 'grant execute on function bump_vet_video_views(bigint) to bta_app, bta_admin';
+  end if;
+end $$;
+
+
+-- ============================================================================
 --  8. STORAGE / AUTOVACUUM DAS TABELAS QUENTES
 -- ----------------------------------------------------------------------------
 --  Tabelas com muita escrita/UPDATE acumulam tuplas mortas -> índices incham
@@ -600,6 +890,43 @@ alter table negotiation_messages set (
   autovacuum_analyze_scale_factor = 0.02
 );
 -- market_price_points: INSERT-only diário e pequeno (ver seção 9). Sem tuning.
+
+-- ---- SEÇÃO 15 — novos domínios: tabelas com UPDATE de contador/status -------
+--  Mesmo racional das quentes acima: fillfactor 90 deixa espaço na página p/
+--  HOT updates (atualização sem reescrever índice) quando o UPDATE mexe SÓ em
+--  colunas NÃO indexadas (contadores/flags/status). Thresholds menores onde o
+--  volume de UPDATE é alto (engajamento/views).
+--  ATENÇÃO: os contadores de group_buy/vet/vet_video/used_listing são
+--  incrementados por AÇÃO DE OUTRO usuário (adesão/like/review/view) e a app
+--  teve UPDATE revogado (catálogo) ou é barrada por RLS (não-dono) -> hoje NÃO
+--  há caminho de escrita para a app manter esses contadores. Ver ACHADO no
+--  relatório: exigem trigger SECURITY DEFINER (db-architect). O tuning abaixo já
+--  fica pronto para quando a manutenção (trigger/job privilegiado) existir.
+-- group_buy: UPDATE de qty_current/participants_count (adesões) e de status.
+alter table group_buy set (
+  autovacuum_vacuum_scale_factor = 0.05,
+  fillfactor = 90
+);
+-- vet: UPDATE de reviews_count/rating (mantidos por trigger/job, não pelo dono).
+alter table vet set (fillfactor = 90);
+-- vet_video: UPDATE QUENTE de views/likes_count/saves_count (engajamento).
+alter table vet_video set (
+  autovacuum_vacuum_scale_factor = 0.05,
+  autovacuum_analyze_scale_factor = 0.02,
+  fillfactor = 90
+);
+-- used_listing: UPDATE de views (por visualização) + status/preço.
+alter table used_listing set (
+  autovacuum_vacuum_scale_factor = 0.05,
+  fillfactor = 90
+);
+-- vet_appointment: UPDATE de status ao longo do fluxo (pendente->concluido).
+alter table vet_appointment set (
+  autovacuum_vacuum_scale_factor = 0.05,
+  fillfactor = 90
+);
+-- price_alert: UPDATE de flags reached/active + current_price (job de preço).
+alter table price_alert set (fillfactor = 90);
 
 
 -- ============================================================================
